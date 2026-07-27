@@ -1,0 +1,20 @@
+Finora v2.0.6 — Clean GitHub Pages Deploy Build
+
+This package intentionally contains only files that should be uploaded to the GitHub Pages repository root.
+
+Your repository root should contain:
+- index.html
+- assets/
+- manifest.webmanifest
+- service-worker.js
+- .nojekyll
+- supabase/
+- DEPLOY_ONLY_THESE_FILES.txt
+
+Do not rename config notes or markdown files to index.html.
+Do not paste any .md note content into index.html.
+
+After uploading, open:
+https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.0.6
+
+Then hard refresh with Ctrl + Shift + R.

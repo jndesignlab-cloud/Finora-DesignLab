@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7faff">
+  <meta name="description" content="Finora by DesignLab is a personal finance dashboard with Supabase-backed login, cloud sync, budgets, goals, recurring transactions, and insights.">
+  <title>Finora by DesignLab</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css?v=2.0.6">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="assets/js/config.js?v=2.0.6"></script>
+  <script defer src="assets/js/app.js?v=2.0.6"></script>
+</head>
+<body>
+  <noscript>Finora requires JavaScript to run.</noscript>
+
+  <section class="auth-gate" id="authGate" aria-label="Finora login">
+    <article class="auth-card login-window card" aria-labelledby="loginWindowTitle">
+      <div class="login-brand-wrap">
+        <div class="brand large-brand">
+          <span class="brand-mark">F</span>
+          <span><strong data-app-name>Finora</strong><small>by DesignLab</small></span>
+        </div>
+        <p class="login-tagline">Money planning by DesignLab</p>
+      </div>
+
+      <p class="security-note" id="configStatus">Checking Supabase configuration…</p>
+
+      <div class="auth-tabs" id="authTabs" role="tablist" aria-label="Authentication options">
+        <button class="active" data-auth="login" type="button">Login</button>
+        <button data-auth="forgot" type="button">Forgot password</button>
+      </div>
+
+      <form id="loginForm" class="auth-form active" autocomplete="on">
+        <div class="form-title">
+          <p class="muted-label">SESSION LOGIN</p>
+          <h2 id="loginWindowTitle">Login to Finora</h2>
+        </div>
+        <label>Username
+          <input name="username" type="text" required autocomplete="username" placeholder="jaravata" autocapitalize="none" spellcheck="false">
+        </label>
+        <label>Password
+          <input name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <button class="primary-button full-width" type="submit">Login</button>
+        <div id="loginNotice" class="notice-holder"></div>
+        <p class="tiny-help">This personal build uses a session-only login. Close or reset the browser session and Finora will ask you to log in again.</p>
+      </form>
+
+      <form id="forgotForm" class="auth-form" autocomplete="on">
+        <div class="form-title">
+          <p class="muted-label">OWNER RECOVERY</p>
+          <h2>Reset password</h2>
+        </div>
+        <label>Username
+          <input name="username" type="text" required autocomplete="username" placeholder="jaravata" autocapitalize="none" spellcheck="false">
+        </label>
+        <label>Owner recovery code
+          <input name="recoveryCode" type="password" required autocomplete="one-time-code" placeholder="Recovery code from setup">
+        </label>
+        <label>New password
+          <input name="newPassword" type="password" required autocomplete="new-password" minlength="8" placeholder="Minimum 8 characters">
+        </label>
+        <button class="primary-button full-width" type="submit">Update password</button>
+        <div id="forgotNotice" class="notice-holder"></div>
+        <p class="tiny-help">Password reset uses the owner recovery code created by the Supabase schema.</p>
+      </form>
+    </article>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <aside class="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#dashboard" data-route-link="dashboard" aria-label="Finora dashboard">
+        <span class="brand-mark">F</span>
+        <span><strong data-app-name>Finora</strong><small>by DesignLab</small></span>
+      </a>
+
+      <nav class="side-nav" id="sideNav">
+        <button class="nav-item active" data-route="dashboard"><span>⌂</span>Overview</button>
+        <button class="nav-item" data-route="transactions"><span>↕</span>Transactions</button>
+        <button class="nav-item" data-route="accounts"><span>▣</span>Accounts</button>
+        <button class="nav-item" data-route="budget"><span>◎</span>Budget</button>
+        <button class="nav-item" data-route="goals"><span>◇</span>Goals</button>
+        <button class="nav-item" data-route="recurring"><span>⟳</span>Recurring</button>
+        <button class="nav-item" data-route="insights"><span>◔</span>Insights</button>
+        <button class="nav-item" data-route="settings"><span>⚙</span>Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="ghost-button full-width" id="syncButton" type="button">Sync now</button>
+        <small><span id="saveState">Ready</span> • v<span data-version>2.0.6</span></small>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="pageEyebrow">PERSONAL FINANCE</p>
+          <h1 id="pageTitle">Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="user-chip" title="Signed in account">
+            <span class="user-avatar" id="currentUserAvatar">J</span>
+            <span><strong id="currentUserName">jaravata</strong><small id="currentUserRole">Personal account</small></span>
+          </div>
+          <button class="icon-button" id="toggleBalances" aria-label="Hide balances" title="Hide balances">◉</button>
+          <button class="primary-button" id="quickAddButton" type="button"><span>＋</span>Add transaction</button>
+          <button class="secondary-button compact-button" id="logoutButton" type="button">Logout</button>
+        </div>
+      </header>
+
+      <section class="page active" id="page-dashboard" data-page="dashboard">
+        <div class="hero-grid">
+          <article class="card networth-card">
+            <div class="card-heading-row">
+              <div>
+                <p class="muted-label">Total Net Worth</p>
+                <h2 class="money-display" id="netWorthValue">₱0.00</h2>
+              </div>
+              <button class="round-icon" id="heroEyeButton" type="button" aria-label="Toggle balance visibility">◉</button>
+            </div>
+            <div class="networth-foot">
+              <span id="netWorthAccountCount">0 active accounts</span>
+              <span id="netWorthTrend">All starting values are ₱0.00</span>
+            </div>
+          </article>
+
+          <article class="card cashflow-card">
+            <div class="summary-row">
+              <div><span class="summary-icon income">↓</span><div><small>This month income</small><strong id="monthIncome">₱0.00</strong></div></div>
+              <div><span class="summary-icon expense">↑</span><div><small>This month expense</small><strong id="monthExpense">₱0.00</strong></div></div>
+            </div>
+            <div class="cashflow-total">
+              <span>Net cash flow</span>
+              <strong id="monthNet">₱0.00</strong>
+            </div>
+          </article>
+        </div>
+
+        <div class="content-grid two-thirds">
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">ACCOUNTS</p><h3>Your money</h3></div><button class="text-button" data-go="accounts" type="button">Manage accounts →</button></div>
+            <div class="account-strip" id="dashboardAccounts"></div>
+          </section>
+          <section class="card section-card quick-actions-card">
+            <div class="section-header"><div><p class="muted-label">QUICK ACTIONS</p><h3>Record money</h3></div></div>
+            <div class="quick-action-grid">
+              <button data-quick-type="expense" type="button"><span>−</span>Expense</button>
+              <button data-quick-type="income" type="button"><span>＋</span>Income</button>
+              <button data-quick-type="transfer" type="button"><span>⇄</span>Transfer</button>
+              <button data-go="budget" type="button"><span>◎</span>Budget</button>
+            </div>
+          </section>
+        </div>
+
+        <div class="content-grid two-thirds">
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">RECENT ACTIVITY</p><h3>Transactions</h3></div><button class="text-button" data-go="transactions" type="button">View all →</button></div>
+            <div id="recentTransactions" class="list-container"></div>
+          </section>
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">SAVINGS</p><h3>Goals</h3></div><button class="text-button" data-go="goals" type="button">View goals →</button></div>
+            <div id="dashboardGoals" class="list-container"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-transactions" data-page="transactions">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">TRANSACTION LEDGER</p><h3>Money movements</h3></div><button class="primary-button" id="addTransactionButton" type="button">Add transaction</button></div>
+          <div class="filter-bar">
+            <input id="transactionSearch" type="search" placeholder="Search notes, category, merchant…">
+            <select id="typeFilter"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option><option value="transfer">Transfer</option></select>
+            <select id="accountFilter"><option value="all">All accounts</option></select>
+            <input id="monthFilter" type="month">
+          </div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Details</th><th>Account</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody id="transactionsTable"></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-accounts" data-page="accounts">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">ACCOUNT CENTER</p><h3>Wallets, savings, cards, loans, investments</h3></div><button class="primary-button" id="addAccountButton" type="button">Add account</button></div>
+          <div class="account-grid" id="accountsGrid"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-budget" data-page="budget">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">BUDGET CONTROL</p><h3>Spending limits</h3></div><button class="primary-button" id="addBudgetButton" type="button">Add budget</button></div>
+          <div class="budget-grid" id="budgetGrid"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-goals" data-page="goals">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">SAVINGS GOALS</p><h3>Targets and progress</h3></div><button class="primary-button" id="addGoalButton" type="button">Add goal</button></div>
+          <div class="goal-grid" id="goalGrid"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-recurring" data-page="recurring">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">RECURRING PLANS</p><h3>Repeating income, bills, and transfers</h3></div><button class="primary-button" id="addRecurringButton" type="button">Add recurring</button></div>
+          <div class="list-container" id="recurringList"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-insights" data-page="insights">
+        <div class="insight-grid">
+          <article class="card section-card"><p class="muted-label">TODAY</p><h3 id="todayNet">₱0.00</h3><small id="todayDetails">No activity yet</small></article>
+          <article class="card section-card"><p class="muted-label">THIS MONTH</p><h3 id="insightMonthNet">₱0.00</h3><small id="insightMonthDetails">No activity yet</small></article>
+          <article class="card section-card"><p class="muted-label">THIS YEAR</p><h3 id="yearNet">₱0.00</h3><small id="yearDetails">No activity yet</small></article>
+        </div>
+        <div class="content-grid two-thirds">
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">CATEGORY BREAKDOWN</p><h3>Expenses</h3></div></div>
+            <div class="chart-wrap"><canvas id="categoryCanvas" width="480" height="280"></canvas></div>
+          </section>
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">REMINDERS</p><h3>Upcoming dues</h3></div><button class="text-button" id="addReminderButton" type="button">Add reminder →</button></div>
+            <div class="list-container" id="reminderList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-settings" data-page="settings">
+        <div class="settings-grid">
+          <article class="card section-card">
+            <div class="section-header"><div><p class="muted-label">PREFERENCES</p><h3>App settings</h3></div></div>
+            <div class="form-grid">
+              <label>Currency<select id="currencySelect"><option value="PHP">PHP — Philippine Peso</option><option value="USD">USD — US Dollar</option><option value="EUR">EUR — Euro</option><option value="JPY">JPY — Japanese Yen</option></select></label>
+              <label>Theme<select id="themeSelect"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+              <label class="toggle-row"><input type="checkbox" id="hideBalancesSetting"><span>Hide balances by default</span></label>
+            </div>
+          </article>
+          <article class="card section-card">
+            <div class="section-header"><div><p class="muted-label">SECURITY</p><h3>Account security</h3></div></div>
+            <form id="changePasswordForm" class="form-grid">
+              <label>Current password<input name="currentPassword" type="password" required autocomplete="current-password"></label>
+              <label>New password<input name="newPassword" type="password" required minlength="8" autocomplete="new-password"></label>
+              <button class="secondary-button" type="submit">Change password</button>
+            </form>
+            <form id="changeRecoveryForm" class="form-grid top-space">
+              <label>Current password<input name="currentPassword" type="password" required autocomplete="current-password"></label>
+              <label>New recovery code<input name="newRecoveryCode" type="password" required minlength="10" autocomplete="new-password"></label>
+              <button class="secondary-button" type="submit">Update recovery code</button>
+            </form>
+          </article>
+          <article class="card section-card danger-zone">
+            <div class="section-header"><div><p class="muted-label">DATA</p><h3>Backup and reset</h3></div></div>
+            <div class="button-row">
+              <button class="secondary-button" id="exportJsonButton" type="button">Export JSON</button>
+              <button class="secondary-button" id="exportCsvButton" type="button">Export CSV</button>
+              <label class="file-button">Import JSON<input id="importJsonInput" type="file" accept="application/json,.json"></label>
+              <button class="danger-button" id="resetDataButton" type="button">Reset finance data</button>
+            </div>
+            <p class="tiny-help">Export before resetting. Reset keeps the login account but restores all finance values to ₱0.00.</p>
+          </article>
+          <article class="card section-card">
+            <div class="section-header"><div><p class="muted-label">LEGAL</p><h3>Personal use notes</h3></div></div>
+            <div class="button-row"><button class="ghost-button" data-open-doc="privacy" type="button">Privacy Notice</button><button class="ghost-button" data-open-doc="terms" type="button">Terms of Use</button><button class="ghost-button" data-open-doc="security" type="button">Security Notes</button></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>
