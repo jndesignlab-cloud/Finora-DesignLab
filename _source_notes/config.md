@@ -84,14 +84,14 @@ v3.0.0 — Public Auth / Supabase Auth Edition
 
 ## Session behavior
 
-Finora v2.0.6 stores the active login token in `sessionStorage`, not `localStorage`. This keeps the login valid only for the current browser session. Closing/resetting the session logs the user out.
+Finora v2.0.7 stores the active login token in `sessionStorage`, not `localStorage`. This keeps the login valid only for the current browser session. Closing/resetting the session logs the user out.
 
 
-## v2.0.6 — Finsights UI Refinement
+## v2.0.7 — Finsights UI Refinement
 
 This build softens the desktop UI to match the original Finsights reference more closely: lighter font weights, smaller headings, softer cards, yellow brand mark, black primary CTA, lime accents, and a cleaner login-first session flow.
 
 
-## v2.0.6 — DesignLab Colorway
+## v2.0.7 — DesignLab Colorway
 
 This build replaces the yellow/lime Finsights accents with the DesignLab palette: white/light background, deep navy text, royal/electric blue buttons and navigation, and soft blue-violet glow support.

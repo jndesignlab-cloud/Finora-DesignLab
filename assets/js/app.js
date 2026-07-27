@@ -23,7 +23,7 @@
     const createdAt = nowISO();
     return {
       meta: {
-        version: config.VERSION || '2.0.6',
+        version: config.VERSION || '2.0.7',
         currency: config.DEFAULT_CURRENCY || 'PHP',
         locale: config.DEFAULT_LOCALE || 'en-PH',
         theme: 'system',
@@ -95,7 +95,7 @@
   function applyBranding() {
     document.title = `${config.APP_NAME || 'Finora'} by ${config.APP_OWNER || 'DesignLab'}`;
     $$('[data-app-name]').forEach((node) => node.textContent = config.APP_NAME || 'Finora');
-    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.0.6');
+    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.0.7');
     const usernameInput = $('input[name="username"]', els.loginForm);
     if (usernameInput && config.DEFAULT_USERNAME) usernameInput.value = config.DEFAULT_USERNAME;
   }

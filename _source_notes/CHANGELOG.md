@@ -1,13 +1,13 @@
 # Changelog
 
-## v2.0.6 — DesignLab Colorway
+## v2.0.7 — DesignLab Colorway
 
 - Recolored Finora using the DesignLab palette: white/light base, deep navy text, royal/electric blue accents, and soft blue-violet support glow.
 - Replaced the Finsights-style yellow/lime brand treatment with a blue-led DesignLab gradient system.
 - Updated active navigation, CTA buttons, progress bars, cards, login accents, app icon, manifest theme color, and cache version.
 - Kept the v2.0.4 softer Finsights layout and session-only login behavior.
 
-## v2.0.6 — Finsights UI Refinement
+## v2.0.7 — Finsights UI Refinement
 
 - Refined the visual style to feel closer to the original Finsights app reference.
 - Reduced heavy/blocky font weights across navigation, headings, buttons, account cards, and summaries.

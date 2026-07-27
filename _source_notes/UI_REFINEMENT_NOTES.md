@@ -1,14 +1,14 @@
-# Finora v2.0.6 — Finsights UI Refinement
+# Finora v2.0.7 — Finsights UI Refinement
 
 Upload the contents of this folder to the GitHub repository root.
 
 Open with a cache-busting URL after deployment:
 
 ```text
-https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.0.6
+https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.0.7
 ```
 
-Use Ctrl + Shift + R after uploading. The service worker cache name was updated to `finora-supabase-v2.0.6`.
+Use Ctrl + Shift + R after uploading. The service worker cache name was updated to `finora-supabase-v2.0.7`.
 
 Default personal login remains:
 

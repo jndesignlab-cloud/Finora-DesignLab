@@ -97,11 +97,11 @@ For personal use, finance records are saved as one JSONB state document per user
 This app is a finance tracker and planning dashboard only. It is not financial, accounting, tax, investment, or legal advice.
 
 
-## v2.0.6 UI note
+## v2.0.7 UI note
 
 This release refines Finora to feel closer to the original Finsights UI: lighter type, smaller headings, softer cards, a less blocky dashboard, and a session-only login-first experience.
 
 
-## v2.0.6 DesignLab Colorway
+## v2.0.7 DesignLab Colorway
 
 This release keeps the softer Finsights-style app layout while recoloring the product with the DesignLab visual system: white/light base, deep navy typography, royal/electric blue primary accents, and violet/lavender only as subtle supporting glow.
