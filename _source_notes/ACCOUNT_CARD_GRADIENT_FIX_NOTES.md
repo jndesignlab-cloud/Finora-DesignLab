@@ -1,4 +1,4 @@
-# Finora v2.0.7 — Account Card + Gradient Fix
+# Finora v2.0.9 — Account Card + Gradient Fix
 
 This update refines the Accounts page after the v2.0.6 clean deploy.
 
@@ -14,4 +14,4 @@ This update refines the Accounts page after the v2.0.6 clean deploy.
 - Active navigation now follows the same blue-to-purple gradient language.
 
 ## Deploy
-Upload the root contents of this build to GitHub Pages and open with `?v=2.0.7` for cache busting.
+Upload the root contents of this build to GitHub Pages and open with `?v=2.0.9` for cache busting.

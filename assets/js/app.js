@@ -9,6 +9,7 @@
   const nowISO = () => new Date().toISOString();
   const id = () => (crypto.randomUUID ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(16).slice(2)}`);
   const storageKey = (key) => `${config.STORAGE_PREFIX || 'finora'}_${key}`;
+  const DEFAULT_CATEGORIES = ['Food', 'Transportation', 'Bills', 'Shopping', 'Salary', 'Emergency', 'Savings', 'Debt Payment', 'Health', 'Education', 'Subscriptions', 'Personal'];
 
   const els = {};
   let supabaseClient = null;
@@ -18,12 +19,14 @@
   let activeRoute = 'dashboard';
   let saveTimer = null;
   let dirty = false;
+  let lastRemoteUpdatedAt = '';
+  let lastAutoPullAt = 0;
 
   function defaultState() {
     const createdAt = nowISO();
     return {
       meta: {
-        version: config.VERSION || '2.0.7',
+        version: config.VERSION || '2.1.0',
         currency: config.DEFAULT_CURRENCY || 'PHP',
         locale: config.DEFAULT_LOCALE || 'en-PH',
         theme: 'system',
@@ -39,6 +42,7 @@
       ],
       transactions: [],
       budgets: [],
+      categories: [...DEFAULT_CATEGORIES],
       goals: [],
       recurring: [],
       reminders: [],
@@ -88,14 +92,15 @@
       currentUserRole: $('#currentUserRole'), currentUserAvatar: $('#currentUserAvatar'), toggleBalances: $('#toggleBalances'), heroEyeButton: $('#heroEyeButton'),
       transactionSearch: $('#transactionSearch'), typeFilter: $('#typeFilter'), accountFilter: $('#accountFilter'), monthFilter: $('#monthFilter'),
       currencySelect: $('#currencySelect'), themeSelect: $('#themeSelect'), hideBalancesSetting: $('#hideBalancesSetting'), changePasswordForm: $('#changePasswordForm'),
-      changeRecoveryForm: $('#changeRecoveryForm'), exportJsonButton: $('#exportJsonButton'), exportCsvButton: $('#exportCsvButton'), importJsonInput: $('#importJsonInput'), resetDataButton: $('#resetDataButton')
+      changeRecoveryForm: $('#changeRecoveryForm'), exportJsonButton: $('#exportJsonButton'), exportCsvButton: $('#exportCsvButton'), importJsonInput: $('#importJsonInput'), resetDataButton: $('#resetDataButton'),
+      categoryForm: $('#categoryForm'), categoryInput: $('#categoryInput'), categoryList: $('#categoryList')
     });
   }
 
   function applyBranding() {
     document.title = `${config.APP_NAME || 'Finora'} by ${config.APP_OWNER || 'DesignLab'}`;
     $$('[data-app-name]').forEach((node) => node.textContent = config.APP_NAME || 'Finora');
-    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.0.7');
+    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.0');
     const usernameInput = $('input[name="username"]', els.loginForm);
     if (usernameInput && config.DEFAULT_USERNAME) usernameInput.value = config.DEFAULT_USERNAME;
   }
@@ -125,7 +130,7 @@
     els.loginForm?.addEventListener('submit', handleLogin);
     els.forgotForm?.addEventListener('submit', handleForgotPassword);
     els.logoutButton?.addEventListener('click', handleLogout);
-    els.syncButton?.addEventListener('click', () => saveNow(true));
+    els.syncButton?.addEventListener('click', () => syncNow(true));
 
     els.sideNav?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-route]');
@@ -160,6 +165,13 @@
     els.exportCsvButton?.addEventListener('click', exportCsv);
     els.importJsonInput?.addEventListener('change', importJson);
     els.resetDataButton?.addEventListener('click', resetFinanceData);
+    els.categoryForm?.addEventListener('submit', handleAddCategory);
+
+    window.addEventListener('online', () => autoPullFromCloud('online'));
+    window.addEventListener('focus', () => autoPullFromCloud('focus'));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') autoPullFromCloud('visible');
+    });
 
     window.addEventListener('beforeunload', (event) => {
       if (!dirty) return;
@@ -232,17 +244,20 @@
     showAuth();
   }
 
-  async function loadRemoteState() {
+  async function loadRemoteState(options = {}) {
     const client = requireSupabase();
+    if (!options.silent) els.saveState.textContent = 'Loading cloud data…';
     const { data, error } = await client.rpc('finora_get_state', { p_session_token: sessionToken });
     if (error) throw error;
     if (!data?.ok) throw new Error(data?.message || 'Unable to load Finora data.');
     currentUser = data.user || currentUser;
     state = normalizeState(data.state || defaultState());
+    lastRemoteUpdatedAt = data.updatedAt || '';
     sessionStorage.setItem(storageKey('currentUser'), JSON.stringify(currentUser));
     dirty = false;
     showApp();
     renderAll();
+    els.saveState.textContent = `Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
 
   async function saveNow(showToast = false) {
@@ -257,6 +272,7 @@
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.message || 'Unable to save Finora data.');
       dirty = false;
+      lastRemoteUpdatedAt = data.updatedAt || nowISO();
       els.saveState.textContent = `Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       if (showToast) toast('Finora data synced to Supabase.');
     } catch (error) {
@@ -265,11 +281,40 @@
     }
   }
 
+
+  async function syncNow(showToast = true) {
+    if (!state || !sessionToken) return;
+    if (dirty) {
+      await saveNow(showToast);
+      return;
+    }
+    await refreshFromCloud(showToast);
+  }
+
+  async function refreshFromCloud(showToast = false) {
+    if (!sessionToken || !state || dirty) return;
+    lastAutoPullAt = Date.now();
+    try {
+      els.saveState.textContent = 'Syncing…';
+      await loadRemoteState({ silent: true });
+      if (showToast) toast('Latest Finora cloud data loaded.');
+    } catch (error) {
+      els.saveState.textContent = 'Sync failed';
+      if (showToast) toast(error.message || 'Unable to pull cloud data.');
+    }
+  }
+
+  function autoPullFromCloud(reason) {
+    if (!sessionToken || !state || dirty || document.hidden) return;
+    if (Date.now() - lastAutoPullAt < 12000) return;
+    refreshFromCloud(false);
+  }
+
   function markDirty() {
     dirty = true;
     els.saveState.textContent = 'Unsaved changes…';
     window.clearTimeout(saveTimer);
-    saveTimer = window.setTimeout(() => saveNow(false), 700);
+    saveTimer = window.setTimeout(() => saveNow(false), 400);
   }
 
   function normalizeState(input) {
@@ -281,14 +326,27 @@
       accounts: Array.isArray(input.accounts) ? input.accounts : base.accounts,
       transactions: Array.isArray(input.transactions) ? input.transactions : [],
       budgets: Array.isArray(input.budgets) ? input.budgets : [],
+      categories: Array.isArray(input.categories) ? input.categories : base.categories,
       goals: Array.isArray(input.goals) ? input.goals : [],
       recurring: Array.isArray(input.recurring) ? input.recurring : [],
       reminders: Array.isArray(input.reminders) ? input.reminders : [],
       settings: { ...base.settings, ...(input.settings || {}) }
     };
     merged.accounts = merged.accounts.map((a) => ({ includeNetWorth: true, currency: merged.meta.currency || 'PHP', openingBalance: 0, ...a, openingBalance: Number(a.openingBalance || 0) }));
-    merged.transactions = merged.transactions.map((t) => ({ ...t, amount: Number(t.amount || 0) }));
-    merged.budgets = merged.budgets.map((b) => ({ active: true, ...b, limit: Number(b.limit || b.amount || 0) }));
+    merged.transactions = merged.transactions.map((t) => ({
+      ...t,
+      amount: Number(t.amount || 0),
+      budgetId: t.budgetId || '',
+      includeInBudget: typeof t.includeInBudget === 'boolean' ? t.includeInBudget : (t.budgetId ? true : undefined)
+    }));
+    merged.budgets = merged.budgets.map((b) => ({ active: true, accountId: '', category: '', period: 'monthly', ...b, limit: Number(b.limit || b.amount || 0), accountId: b.accountId || '' }));
+    merged.categories = uniqueCategories([
+      ...DEFAULT_CATEGORIES,
+      ...merged.categories,
+      ...merged.transactions.map((t) => t.category),
+      ...merged.budgets.map((b) => b.category),
+      ...merged.recurring.map((r) => r.category)
+    ]);
     merged.goals = merged.goals.map((g) => ({ ...g, target: Number(g.target || 0), current: Number(g.current || 0) }));
     merged.recurring = merged.recurring.map((r) => ({ active: true, ...r, amount: Number(r.amount || 0) }));
     merged.reminders = merged.reminders.map((r) => ({ status: 'pending', ...r, amount: Number(r.amount || 0) }));
@@ -352,6 +410,7 @@
     renderRecurring();
     renderInsights();
     renderSettings();
+    renderCategoryList();
   }
 
   function restoreTheme() {
@@ -416,15 +475,18 @@
       .filter((t) => !q || [t.notes, t.category, t.merchant, accountName(t.accountId), accountName(t.toAccountId)].join(' ').toLowerCase().includes(q))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt)));
 
-    tbody.innerHTML = rows.map((t) => `
+    tbody.innerHTML = rows.map((t) => {
+      const budgetLine = t.includeInBudget && t.budgetId ? ` • Budget: ${budgetName(t.budgetId)}` : t.includeInBudget === false ? ' • No budget' : '';
+      return `
       <tr>
         <td>${formatDate(t.date)}</td>
-        <td><strong>${escapeHtml(t.category || titleCase(t.type))}</strong><br><small>${escapeHtml(t.merchant || t.notes || 'No notes')}</small></td>
+        <td><strong>${escapeHtml(t.category || titleCase(t.type))}</strong><br><small>${escapeHtml(t.merchant || t.notes || 'No notes')}${escapeHtml(budgetLine)}</small></td>
         <td>${escapeHtml(accountName(t.accountId))}${t.type === 'transfer' ? ` → ${escapeHtml(accountName(t.toAccountId))}` : ''}</td>
         <td><span class="tag ${t.type}">${escapeHtml(t.type)}</span></td>
         <td><strong class="money ${t.type}">${t.type === 'expense' ? '−' : t.type === 'income' ? '+' : ''}${money(t.amount)}</strong></td>
         <td><button class="text-button" type="button" data-edit-transaction="${t.id}">Edit</button><button class="text-button" type="button" data-delete-transaction="${t.id}">Delete</button></td>
-      </tr>`).join('') || `<tr><td colspan="6">${empty('No matching transactions.')}</td></tr>`;
+      </tr>`;
+    }).join('') || `<tr><td colspan="6">${empty('No matching transactions.')}</td></tr>`;
 
     $$('[data-edit-transaction]', tbody).forEach((btn) => btn.addEventListener('click', () => openTransactionModal(state.transactions.find((t) => t.id === btn.dataset.editTransaction))));
     $$('[data-delete-transaction]', tbody).forEach((btn) => btn.addEventListener('click', () => deleteTransaction(btn.dataset.deleteTransaction)));
@@ -437,14 +499,18 @@
       const limit = Number(budget.limit || 0);
       const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;
       const over = spent > limit && limit > 0;
+      const accountScope = budget.accountId ? accountName(budget.accountId) : 'All accounts';
+      const categoryScope = budget.category ? budget.category : 'All categories';
+      const status = budget.active === false ? 'Inactive' : over ? 'Over' : 'Active';
       return `<article class="mini-card budget-card">
-        <div class="mini-top"><div><h4>${escapeHtml(budget.name)}</h4><p>${escapeHtml(budget.category || 'Overall spending')} • ${escapeHtml(budget.period || 'monthly')}</p></div><span class="tag ${over ? 'expense' : ''}">${over ? 'Over' : 'Active'}</span></div>
+        <div class="mini-top"><div><h4>${escapeHtml(budget.name)}</h4><p>${escapeHtml(accountScope)} • ${escapeHtml(categoryScope)} • ${escapeHtml(budget.period || 'monthly')}</p></div><span class="tag ${over ? 'expense' : budget.active === false ? 'muted-tag' : ''}">${status}</span></div>
+        <div class="scope-pills"><span>${escapeHtml(accountScope)}</span><span>${escapeHtml(categoryScope)}</span></div>
         <div class="progress ${over ? 'over' : ''}"><span style="width:${pct}%"></span></div>
         <p><strong>${money(spent)}</strong> used of <strong>${money(limit)}</strong></p>
         <p>Remaining: <strong>${money(Math.max(0, limit - spent))}</strong></p>
         <div class="button-row"><button class="secondary-button" type="button" data-edit-budget="${budget.id}">Edit</button><button class="ghost-button" type="button" data-delete-budget="${budget.id}">Delete</button></div>
       </article>`;
-    }).join('') || empty('No budgets yet. Add daily, weekly, monthly, or yearly limits.');
+    }).join('') || empty('No budgets yet. Add daily, weekly, monthly, or yearly account-based limits.');
     $$('[data-edit-budget]', grid).forEach((btn) => btn.addEventListener('click', () => openBudgetModal(state.budgets.find((b) => b.id === btn.dataset.editBudget))));
     $$('[data-delete-budget]', grid).forEach((btn) => btn.addEventListener('click', () => deleteById('budgets', btn.dataset.deleteBudget)));
   }
@@ -556,7 +622,8 @@
   }
 
   function transactionRow(t) {
-    return `<article class="list-row"><span class="emoji">${t.type === 'income' ? '💰' : t.type === 'transfer' ? '🔁' : '🧾'}</span><div><h4>${escapeHtml(t.category || titleCase(t.type))}</h4><p>${formatDate(t.date)} • ${escapeHtml(accountName(t.accountId))}${t.type === 'transfer' ? ` → ${escapeHtml(accountName(t.toAccountId))}` : ''}</p></div><div class="row-right"><strong class="money ${t.type}">${t.type === 'expense' ? '−' : t.type === 'income' ? '+' : ''}${money(t.amount)}</strong></div></article>`;
+    const budgetText = t.includeInBudget && t.budgetId ? ` • ${budgetName(t.budgetId)}` : '';
+    return `<article class="list-row"><span class="emoji">${t.type === 'income' ? '💰' : t.type === 'transfer' ? '🔁' : '🧾'}</span><div><h4>${escapeHtml(t.category || titleCase(t.type))}</h4><p>${formatDate(t.date)} • ${escapeHtml(accountName(t.accountId))}${t.type === 'transfer' ? ` → ${escapeHtml(accountName(t.toAccountId))}` : ''}${escapeHtml(budgetText)}</p></div><div class="row-right"><strong class="money ${t.type}">${t.type === 'expense' ? '−' : t.type === 'income' ? '+' : ''}${money(t.amount)}</strong></div></article>`;
   }
 
   function goalCardCompact(goal) {
@@ -571,7 +638,13 @@
     return state.transactions
       .filter((t) => t.type === 'expense')
       .filter((t) => t.date >= start && t.date <= end)
-      .filter((t) => !budget.category || budget.category === 'All' || String(t.category || '').toLowerCase() === String(budget.category).toLowerCase())
+      .filter((t) => {
+        const hasExplicitBudgetChoice = typeof t.includeInBudget === 'boolean' || !!t.budgetId;
+        if (hasExplicitBudgetChoice) return t.includeInBudget === true && t.budgetId === budget.id;
+        const accountMatches = !budget.accountId || t.accountId === budget.accountId;
+        const categoryMatches = !budget.category || budget.category === 'All' || String(t.category || '').toLowerCase() === String(budget.category).toLowerCase();
+        return accountMatches && categoryMatches;
+      })
       .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   }
 
@@ -678,45 +751,82 @@
 
   function openTransactionModal(transaction = {}) {
     const editing = !!transaction.id;
-    const data = { id: id(), type: 'expense', accountId: state.accounts[0]?.id || '', toAccountId: state.accounts[1]?.id || '', amount: 0, category: '', date: todayISO(), merchant: '', notes: '', ...transaction };
+    const data = { id: id(), type: 'expense', accountId: state.accounts[0]?.id || '', toAccountId: state.accounts[1]?.id || '', amount: 0, category: '', date: todayISO(), merchant: '', notes: '', budgetId: '', includeInBudget: false, ...transaction };
+    const includeBudgetChecked = data.type === 'expense' && data.includeInBudget === true && data.budgetId;
     openModal(`${editing ? 'Edit' : 'Add'} transaction`, `<form id="transactionForm" class="form-grid">
       <label>Type<select name="type" id="txType">${options(['expense','income','transfer'], data.type)}</select></label>
       <label>Amount<input name="amount" type="number" step="0.01" min="0" required value="${Number(data.amount || 0)}"></label>
       <label>Account<select name="accountId" required>${accountOptions(data.accountId)}</select></label>
       <label class="to-account-field">To account<select name="toAccountId">${accountOptions(data.toAccountId)}</select></label>
       <label>Date<input name="date" type="date" required value="${attr(data.date || todayISO())}"></label>
-      <label>Category<input name="category" value="${attr(data.category)}" placeholder="Food, Salary, Utilities…"></label>
+      <label>Category<select name="categorySelect" id="txCategorySelect">${categoryOptions(data.category, 'transaction')}</select></label>
+      <label class="new-category-field hidden span">New category<input name="newCategory" value="" placeholder="Example: Groceries"></label>
       <label>Merchant / Source<input name="merchant" value="${attr(data.merchant)}" placeholder="Optional"></label>
+      <label class="toggle-row span budget-toggle-field"><input name="includeInBudget" id="txIncludeBudget" type="checkbox" ${includeBudgetChecked ? 'checked' : ''}><span>Include this transaction in a budget</span></label>
+      <label class="span budget-link-field hidden">Which budget<select name="budgetId" id="txBudgetId">${budgetOptions(data.budgetId)}</select></label>
       <label class="span">Notes<textarea name="notes">${escapeHtml(data.notes || '')}</textarea></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save transaction</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
     const txType = $('#txType');
+    const categorySelect = $('#txCategorySelect');
+    const includeBudget = $('#txIncludeBudget');
     const toggleTo = () => $('.to-account-field').classList.toggle('hidden', txType.value !== 'transfer');
-    txType.addEventListener('change', toggleTo); toggleTo();
+    const toggleCategory = () => $('.new-category-field').classList.toggle('hidden', categorySelect.value !== '__new');
+    const toggleBudget = () => {
+      const isExpense = txType.value === 'expense';
+      $('.budget-toggle-field').classList.toggle('hidden', !isExpense);
+      $('.budget-link-field').classList.toggle('hidden', !isExpense || !includeBudget.checked);
+    };
+    txType.addEventListener('change', () => { toggleTo(); toggleBudget(); });
+    categorySelect.addEventListener('change', toggleCategory);
+    includeBudget.addEventListener('change', toggleBudget);
+    toggleTo(); toggleCategory(); toggleBudget();
     $('#transactionForm').addEventListener('submit', (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);
-      const next = { ...data, type: form.get('type'), amount: Number(form.get('amount') || 0), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', date: form.get('date'), category: form.get('category'), merchant: form.get('merchant'), notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
+      let category = String(form.get('categorySelect') || '');
+      if (category === '__new') {
+        category = cleanCategory(form.get('newCategory'));
+        if (!category) return toast('Enter a new category name.');
+        addCategoryToState(category);
+      }
+      const includeInBudget = form.get('type') === 'expense' && !!form.get('includeInBudget');
+      const selectedBudgetId = includeInBudget ? String(form.get('budgetId') || '') : '';
+      if (includeInBudget && !selectedBudgetId) return toast('Choose a budget or turn off budget inclusion.');
+      const next = { ...data, type: form.get('type'), amount: Number(form.get('amount') || 0), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', date: form.get('date'), category, merchant: form.get('merchant'), notes: form.get('notes'), includeInBudget, budgetId: selectedBudgetId, updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
       if (next.type !== 'transfer') next.toAccountId = '';
-      upsert('transactions', next); closeModal(); renderAll(); markDirty(); toast('Transaction saved.');
+      if (next.type !== 'expense') { next.includeInBudget = false; next.budgetId = ''; }
+      upsert('transactions', next); closeModal(); renderAll(); markDirty(); toast(includeInBudget ? 'Transaction saved and linked to budget.' : 'Transaction saved.');
     });
   }
 
   function openBudgetModal(budget = null) {
     const editing = !!budget;
-    const data = budget || { id: id(), name: '', category: '', period: 'monthly', limit: 0, active: true };
+    const data = budget || { id: id(), name: '', accountId: '', category: '', period: 'monthly', limit: 0, active: true };
     openModal(`${editing ? 'Edit' : 'Add'} budget`, `<form id="budgetForm" class="form-grid">
       <label>Name<input name="name" required value="${attr(data.name)}" placeholder="Monthly spending"></label>
       <label>Limit<input name="limit" type="number" step="0.01" min="0" required value="${Number(data.limit || 0)}"></label>
-      <label>Category<input name="category" value="${attr(data.category)}" placeholder="Leave blank for overall"></label>
+      <label>Account scope<select name="accountId">${budgetAccountOptions(data.accountId || '')}</select></label>
       <label>Period<select name="period">${options(['daily','weekly','monthly','yearly'], data.period)}</select></label>
+      <label class="span">Category scope<select name="categorySelect" id="budgetCategorySelect">${categoryOptions(data.category, 'budget')}</select></label>
+      <label class="new-budget-category-field hidden span">New category<input name="newCategory" placeholder="Example: Groceries"></label>
+      <p class="tiny-help span">Budget can track all accounts, one selected account, all categories, or a specific category. Transactions only update a budget when you choose to include them.</p>
       <label class="toggle-row span"><input name="active" type="checkbox" ${data.active !== false ? 'checked' : ''}><span>Active budget</span></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save budget</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
+    const categorySelect = $('#budgetCategorySelect');
+    const toggleCategory = () => $('.new-budget-category-field').classList.toggle('hidden', categorySelect.value !== '__new');
+    categorySelect.addEventListener('change', toggleCategory); toggleCategory();
     $('#budgetForm').addEventListener('submit', (event) => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
-      upsert('budgets', { ...data, name: form.get('name'), limit: Number(form.get('limit') || 0), category: form.get('category'), period: form.get('period'), active: !!form.get('active'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() });
-      closeModal(); renderAll(); markDirty(); toast('Budget saved.');
+      let category = String(form.get('categorySelect') || '');
+      if (category === '__new') {
+        category = cleanCategory(form.get('newCategory'));
+        if (!category) return toast('Enter a new category name.');
+        addCategoryToState(category);
+      }
+      upsert('budgets', { ...data, name: form.get('name'), limit: Number(form.get('limit') || 0), accountId: form.get('accountId') || '', category, period: form.get('period'), active: !!form.get('active'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() });
+      closeModal(); renderAll(); markDirty(); toast('Budget saved and synced to this Finora account.');
     });
   }
 
@@ -760,16 +870,26 @@
       <label>Account<select name="accountId" required>${accountOptions(data.accountId)}</select></label>
       <label class="rec-to-field">To account<select name="toAccountId">${accountOptions(data.toAccountId)}</select></label>
       <label>Next date<input name="nextDate" type="date" required value="${attr(data.nextDate || todayISO())}"></label>
-      <label>Category<input name="category" value="${attr(data.category)}"></label>
+      <label>Category<select name="categorySelect" id="recCategorySelect">${categoryOptions(data.category, 'transaction')}</select></label>
+      <label class="new-rec-category-field hidden span">New category<input name="newCategory" placeholder="Example: Subscription"></label>
       <label class="toggle-row span"><input name="active" type="checkbox" ${data.active !== false ? 'checked' : ''}><span>Active recurring item</span></label>
       <label class="span">Notes<textarea name="notes">${escapeHtml(data.notes || '')}</textarea></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save recurring</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
     const recType = $('#recType'); const toggleTo = () => $('.rec-to-field').classList.toggle('hidden', recType.value !== 'transfer');
+    const recCategorySelect = $('#recCategorySelect');
+    const toggleCategory = () => $('.new-rec-category-field').classList.toggle('hidden', recCategorySelect.value !== '__new');
     recType.addEventListener('change', toggleTo); toggleTo();
+    recCategorySelect.addEventListener('change', toggleCategory); toggleCategory();
     $('#recurringForm').addEventListener('submit', (event) => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
-      const next = { ...data, name: form.get('name'), type: form.get('type'), amount: Number(form.get('amount') || 0), frequency: form.get('frequency'), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', nextDate: form.get('nextDate'), category: form.get('category'), active: !!form.get('active'), notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
+      let category = String(form.get('categorySelect') || '');
+      if (category === '__new') {
+        category = cleanCategory(form.get('newCategory'));
+        if (!category) return toast('Enter a new category name.');
+        addCategoryToState(category);
+      }
+      const next = { ...data, name: form.get('name'), type: form.get('type'), amount: Number(form.get('amount') || 0), frequency: form.get('frequency'), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', nextDate: form.get('nextDate'), category, active: !!form.get('active'), notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
       if (next.type !== 'transfer') next.toAccountId = '';
       upsert('recurring', next); closeModal(); renderAll(); markDirty(); toast('Recurring item saved.');
     });
@@ -815,7 +935,9 @@
 
   function deleteAccount(accountId) {
     const hasTx = state.transactions.some((t) => t.accountId === accountId || t.toAccountId === accountId);
+    const hasLinks = state.budgets.some((b) => b.accountId === accountId) || state.goals.some((g) => g.accountId === accountId) || state.recurring.some((r) => r.accountId === accountId || r.toAccountId === accountId) || state.reminders.some((r) => r.accountId === accountId);
     if (hasTx) return toast('This account has transactions. Delete or move them first.');
+    if (hasLinks) return toast('This account is linked to budgets, goals, recurring items, or reminders. Remove those links first.');
     if (!confirm('Delete this account?')) return;
     state.accounts = state.accounts.filter((a) => a.id !== accountId);
     renderAll(); markDirty(); toast('Account deleted.');
@@ -837,6 +959,42 @@
     const index = state[collection].findIndex((item) => item.id === record.id);
     if (index >= 0) state[collection][index] = record;
     else state[collection].push(record);
+  }
+
+
+  function renderCategoryList() {
+    if (!els.categoryList) return;
+    const categories = getCategories();
+    els.categoryList.innerHTML = categories.map((category) => `<span class="category-chip">${escapeHtml(category)}<button type="button" aria-label="Delete ${escapeHtml(category)}" data-delete-category="${escapeHtml(category)}">×</button></span>`).join('') || empty('No categories yet.');
+    $$('[data-delete-category]', els.categoryList).forEach((button) => button.addEventListener('click', () => deleteCategory(button.dataset.deleteCategory)));
+  }
+
+  function handleAddCategory(event) {
+    event.preventDefault();
+    const value = cleanCategory(els.categoryInput?.value || '');
+    if (!value) return toast('Enter a category name.');
+    if (!addCategoryToState(value)) return toast('Category already exists.');
+    if (els.categoryInput) els.categoryInput.value = '';
+    renderCategoryList(); markDirty(); toast('Category added.');
+  }
+
+  function deleteCategory(category) {
+    const value = cleanCategory(category);
+    if (!value) return;
+    if (state.transactions.some((t) => cleanCategory(t.category).toLowerCase() === value.toLowerCase()) || state.budgets.some((b) => cleanCategory(b.category).toLowerCase() === value.toLowerCase())) {
+      if (!confirm('This category is used in transactions or budgets. Remove it only from the dropdown list?')) return;
+    }
+    state.categories = getCategories().filter((item) => item.toLowerCase() !== value.toLowerCase());
+    renderCategoryList(); markDirty(); toast('Category removed from dropdown.');
+  }
+
+  function addCategoryToState(category) {
+    const value = cleanCategory(category);
+    if (!value) return false;
+    const exists = getCategories().some((item) => item.toLowerCase() === value.toLowerCase());
+    if (!exists) state.categories.push(value);
+    state.categories = uniqueCategories(state.categories);
+    return !exists;
   }
 
   async function handleChangePassword(event) {
@@ -885,8 +1043,8 @@
   }
 
   function exportCsv() {
-    const headers = ['date','type','account','to_account','category','merchant','notes','amount'];
-    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), t.category, t.merchant, t.notes, t.amount]);
+    const headers = ['date','type','account','to_account','category','budget','merchant','notes','amount'];
+    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), t.category, t.includeInBudget && t.budgetId ? budgetName(t.budgetId) : '', t.merchant, t.notes, t.amount]);
     const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
     downloadFile(`finora-transactions-${todayISO()}.csv`, csv, 'text/csv');
   }
@@ -909,7 +1067,7 @@
 
   function openDocModal(kind) {
     const docs = {
-      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, budgets, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
+      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, account-scoped budgets, manual transaction-to-budget links, category dropdowns, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, sync finance records across your own devices, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
       terms: ['Terms of Use', `<div class="legal-copy"><p>Finora is provided as a personal finance tracker and planning tool by DesignLab. It is not financial, accounting, tax, or legal advice.</p><p>Review all figures before making financial decisions. You are responsible for protecting your login credentials, backups, and Supabase project access.</p></div>`],
       security: ['Security Notes', `<div class="legal-copy"><p>This edition uses Supabase RPC functions, password hashing through Postgres pgcrypto, hashed session tokens, failed-login lockout, owner recovery code, and no direct table access through the public client.</p><p>Before any public launch, migrate to Supabase Auth or a dedicated backend, configure production monitoring, and complete a proper privacy/legal review.</p></div>`]
     };
@@ -954,6 +1112,30 @@
   function attr(value) { return escapeHtml(value || ''); }
   function options(list, selected) { return list.map((item) => `<option value="${item}" ${item === selected ? 'selected' : ''}>${titleCase(item)}</option>`).join(''); }
   function accountOptions(selected, includeEmpty = true) { return (includeEmpty && !state.accounts.length ? '<option value="">No accounts yet</option>' : '') + state.accounts.map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join(''); }
+  function budgetAccountOptions(selected) { return '<option value="" ' + (!selected ? 'selected' : '') + '>All accounts</option>' + state.accounts.map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join(''); }
+  function budgetName(budgetId) { return state.budgets.find((b) => b.id === budgetId)?.name || 'No budget'; }
+  function budgetOptions(selected) {
+    const budgets = state.budgets.filter((b) => b.active !== false);
+    if (!budgets.length) return '<option value="">No active budgets yet</option>';
+    return '<option value="">Select budget</option>' + budgets.map((b) => {
+      const scope = `${b.accountId ? accountName(b.accountId) : 'All accounts'} • ${b.category || 'All categories'}`;
+      return `<option value="${b.id}" ${b.id === selected ? 'selected' : ''}>${escapeHtml(b.name)} — ${escapeHtml(scope)}</option>`;
+    }).join('');
+  }
+  function categoryOptions(selected, mode = 'transaction') {
+    const normalized = cleanCategory(selected);
+    const categoryItems = getCategories();
+    const prefix = mode === 'budget' ? `<option value="" ${!normalized ? 'selected' : ''}>All categories</option>` : `<option value="" ${!normalized ? 'selected' : ''}>Select category</option>`;
+    const optionsHtml = categoryItems.map((item) => `<option value="${escapeHtml(item)}" ${item.toLowerCase() === normalized.toLowerCase() ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('');
+    const customSelected = normalized && !categoryItems.some((item) => item.toLowerCase() === normalized.toLowerCase());
+    return prefix + optionsHtml + `<option value="__new" ${customSelected ? 'selected' : ''}>+ Add new category</option>`;
+  }
+  function getCategories() { return uniqueCategories([...(state?.categories || []), ...(state?.transactions || []).map((t) => t.category), ...(state?.budgets || []).map((b) => b.category), ...(state?.recurring || []).map((r) => r.category)]); }
+  function cleanCategory(value) { return String(value || '').trim().replace(/\s+/g, ' '); }
+  function uniqueCategories(list) {
+    const seen = new Set();
+    return list.map(cleanCategory).filter(Boolean).filter((item) => { const key = item.toLowerCase(); if (seen.has(key)) return false; seen.add(key); return true; }).sort((a, b) => a.localeCompare(b));
+  }
   function csvEscape(value) { const s = String(value ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }
   function downloadFile(filename, content, type) { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
   function setNotice(node, message, type = 'info') { if (!node) return; node.innerHTML = message ? `<div class="notice ${type}">${escapeHtml(message)}</div>` : ''; }

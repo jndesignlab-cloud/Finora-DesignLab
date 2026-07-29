@@ -2,7 +2,7 @@
   "name": "Finora by DesignLab",
   "short_name": "Finora",
   "description": "Personal money planning by DesignLab.",
-  "start_url": "./index.html?v=2.0.7",
+  "start_url": "./index.html?v=2.1.0",
   "display": "standalone",
   "background_color": "#f7faff",
   "theme_color": "#2557ff",

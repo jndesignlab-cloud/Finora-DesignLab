@@ -1,20 +1,37 @@
-Finora v2.0.7 — Clean GitHub Pages Deploy Build
+Finora v2.1.0 — Auto-Sync, Budget Links, and Categories Deploy Build
 
-This package intentionally contains only files that should be uploaded to the GitHub Pages repository root.
+Upload these root contents directly to the GitHub repository root:
 
-Your repository root should contain:
-- index.html
-- assets/
-- manifest.webmanifest
-- service-worker.js
-- .nojekyll
-- supabase/
-- DEPLOY_ONLY_THESE_FILES.txt
+index.html
+assets/
+manifest.webmanifest
+service-worker.js
+.nojekyll
+CNAME
+supabase/
+VERSION
+DEPLOY_ONLY_THESE_FILES.txt
+_source_notes/
 
-Do not rename config notes or markdown files to index.html.
-Do not paste any .md note content into index.html.
+Custom domain included:
+finora.madebydesignlab.com
 
-After uploading, open:
-https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.0.7
+Required DNS record:
+Type: CNAME
+Host/Name: finora
+Target/Value: jndesignlab-cloud.github.io
 
-Then hard refresh with Ctrl + Shift + R.
+After upload, set GitHub Pages custom domain to:
+finora.madebydesignlab.com
+
+Temporary cache-busting URL:
+https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.0
+
+Final domain after DNS and HTTPS are active:
+https://finora.madebydesignlab.com
+
+
+New in this build:
+- Budgets can now be linked to All Accounts or one selected account.
+- Budget spending calculations now respect account scope and category scope.
+- Same Finora login can open the same Supabase-synced data from another PC or phone.

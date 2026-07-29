@@ -218,7 +218,7 @@ input,select,textarea{border-radius:15px;background:var(--surface);border-color:
 
 
 /*
-   Finora v2.0.7 — DesignLab Colorway
+   Finora v2.0.9 — DesignLab Colorway
    Blue-led DesignLab palette: white/light base, deep navy text, royal/electric blue accents,
    violet only as soft support. Removes the Finsights yellow/lime treatment.
 */
@@ -366,7 +366,7 @@ input:focus,select:focus,textarea:focus{
 
 
 /*
-   Finora v2.0.7 — Account Card + DesignLab Gradient Fix
+   Finora v2.0.9 — Account Card + DesignLab Gradient Fix
    Fixes account card amount overflow and uses the usual DesignLab blue-to-purple gradient for action buttons.
 */
 :root{
@@ -498,3 +498,41 @@ input:focus,select:focus,textarea:focus{
   .account-grid{grid-template-columns:1fr!important;}
   .account-card .small-money{font-size:34px!important;}
 }
+
+/* Finora v2.0.9 — Account-bound budgets + cross-device sync note */
+.scope-pills{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:-2px;
+}
+.scope-pills span{
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  max-width:100%;
+  border-radius:999px;
+  background:rgba(37,87,255,.08);
+  color:#2450c6;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:650;
+  line-height:1;
+}
+.tag.muted-tag{
+  background:#f0f3f8!important;
+  color:#6b7280!important;
+}
+.budget-card h4,
+.budget-card p{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.budget-card .mini-top p{
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+}
+
+/* Finora v2.1.0 — Auto-sync, budget links, and category manager */
+.category-form{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:14px}.category-chip-list{display:flex;flex-wrap:wrap;gap:8px}.category-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(250,252,255,.88);border-radius:999px;padding:7px 10px;font-size:13px;font-weight:700;color:var(--ink)}[data-theme="dark"] .category-chip{background:rgba(255,255,255,.05)}.category-chip button{border:0;background:rgba(26,102,255,.10);color:var(--blue);border-radius:999px;width:20px;height:20px;display:grid;place-items:center;padding:0;font-weight:800}.budget-toggle-field{align-items:flex-start}.budget-link-field select,.new-category-field input,.new-budget-category-field input,.new-rec-category-field input{width:100%}.data-table small{line-height:1.45}@media(max-width:660px){.category-form{grid-template-columns:1fr}.category-form .secondary-button{width:100%}}

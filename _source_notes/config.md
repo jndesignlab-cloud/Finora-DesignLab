@@ -84,14 +84,22 @@ v3.0.0 — Public Auth / Supabase Auth Edition
 
 ## Session behavior
 
-Finora v2.0.7 stores the active login token in `sessionStorage`, not `localStorage`. This keeps the login valid only for the current browser session. Closing/resetting the session logs the user out.
+Finora v2.1.0 stores the active login token in `sessionStorage`, not `localStorage`. This keeps the login valid only for the current browser session. Closing/resetting the session logs the user out.
 
 
-## v2.0.7 — Finsights UI Refinement
+## v2.1.0 — Finsights UI Refinement
 
 This build softens the desktop UI to match the original Finsights reference more closely: lighter font weights, smaller headings, softer cards, yellow brand mark, black primary CTA, lime accents, and a cleaner login-first session flow.
 
 
-## v2.0.7 — DesignLab Colorway
+## v2.1.0 — DesignLab Colorway
 
 This build replaces the yellow/lime Finsights accents with the DesignLab palette: white/light background, deep navy text, royal/electric blue buttons and navigation, and soft blue-violet glow support.
+
+## v2.1.0 — Account-Bound Budgets + Cloud Sync
+
+Budget records now support `accountId`. Empty `accountId` means the budget applies to all accounts. A selected `accountId` means the budget only counts expenses recorded from that account. Category remains optional; an empty category means all categories.
+
+No SQL rerun is required for existing installs because Finora stores finance state as JSONB in `finora_user_state`. Existing budgets automatically load as All Accounts budgets.
+
+The data remains bound to the signed-in Finora user and saved in Supabase, so the same records can be opened from another PC or phone after logging in. Session storage is still used for the active login token, so closing/resetting the browser session logs out that device.

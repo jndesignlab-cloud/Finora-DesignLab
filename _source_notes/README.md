@@ -97,11 +97,43 @@ For personal use, finance records are saved as one JSONB state document per user
 This app is a finance tracker and planning dashboard only. It is not financial, accounting, tax, investment, or legal advice.
 
 
-## v2.0.7 UI note
+## v2.1.0 UI note
 
 This release refines Finora to feel closer to the original Finsights UI: lighter type, smaller headings, softer cards, a less blocky dashboard, and a session-only login-first experience.
 
 
-## v2.0.7 DesignLab Colorway
+## v2.1.0 DesignLab Colorway
 
 This release keeps the softer Finsights-style app layout while recoloring the product with the DesignLab visual system: white/light base, deep navy typography, royal/electric blue primary accents, and violet/lavender only as subtle supporting glow.
+
+## v2.1.0 Custom domain
+
+This build includes a root `CNAME` file for GitHub Pages:
+
+```text
+finora.madebydesignlab.com
+```
+
+Add this DNS record at the domain host:
+
+```text
+CNAME finora -> jndesignlab-cloud.github.io
+```
+
+Then set the GitHub Pages custom domain to `finora.madebydesignlab.com` and enable Enforce HTTPS after DNS verification.
+
+## v2.1.0 account-bound budgets
+
+Finora now supports account-based budget scopes. A budget can track:
+
+- All accounts + all categories
+- All accounts + one category
+- One account + all categories
+- One account + one category
+
+This is still saved inside the signed-in Finora account in Supabase. Log in as `jaravata` on another PC or phone and the same accounts, budgets, transactions, goals, and settings will load from the same cloud state. The active login itself remains session-only, so closing/resetting the browser session logs you out.
+
+
+## Auto-sync and budget linking
+
+Finora v2.1.0 automatically pulls cloud data on login and when returning to the app if there are no unsaved local changes. It also auto-saves after edits. Expense transactions now include an optional budget toggle and budget selector, so budgets update only when a transaction is assigned to a budget. Categories are managed through Settings and appear as dropdown choices across transactions, budgets, and recurring items.

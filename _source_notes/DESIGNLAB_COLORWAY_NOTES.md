@@ -1,4 +1,4 @@
-# Finora v2.0.7 — DesignLab Colorway Notes
+# Finora v2.0.9 — DesignLab Colorway Notes
 
 This update keeps the softer Finsights-inspired layout from v2.0.4 but replaces the yellow/lime treatment with the DesignLab color system.
 

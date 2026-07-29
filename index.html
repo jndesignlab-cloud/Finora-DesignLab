@@ -11,10 +11,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css?v=2.0.7">
+  <link rel="stylesheet" href="assets/css/styles.css?v=2.1.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="assets/js/config.js?v=2.0.7"></script>
-  <script defer src="assets/js/app.js?v=2.0.7"></script>
+  <script defer src="assets/js/config.js?v=2.1.0"></script>
+  <script defer src="assets/js/app.js?v=2.1.0"></script>
 </head>
 <body>
   <noscript>Finora requires JavaScript to run.</noscript>
@@ -93,7 +93,7 @@
 
       <div class="sidebar-footer">
         <button class="ghost-button full-width" id="syncButton" type="button">Sync now</button>
-        <small><span id="saveState">Ready</span> • v<span data-version>2.0.7</span></small>
+        <small><span id="saveState">Ready</span> • v<span data-version>2.1.0</span></small>
       </div>
     </aside>
 
@@ -238,6 +238,15 @@
               <label>Theme<select id="themeSelect"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
               <label class="toggle-row"><input type="checkbox" id="hideBalancesSetting"><span>Hide balances by default</span></label>
             </div>
+          </article>
+          <article class="card section-card">
+            <div class="section-header"><div><p class="muted-label">CATEGORIES</p><h3>Dropdown manager</h3></div></div>
+            <form id="categoryForm" class="category-form">
+              <input id="categoryInput" type="text" placeholder="Add category, e.g. Groceries" autocomplete="off">
+              <button class="secondary-button" type="submit">Add category</button>
+            </form>
+            <div id="categoryList" class="category-chip-list"></div>
+            <p class="tiny-help">Categories appear in transaction, budget, and recurring dropdowns. Removing a category only removes it from the dropdown list.</p>
           </article>
           <article class="card section-card">
             <div class="section-header"><div><p class="muted-label">SECURITY</p><h3>Account security</h3></div></div>
