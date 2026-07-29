@@ -26,7 +26,7 @@
     const createdAt = nowISO();
     return {
       meta: {
-        version: config.VERSION || '2.1.1',
+        version: config.VERSION || '2.1.2',
         currency: config.DEFAULT_CURRENCY || 'PHP',
         locale: config.DEFAULT_LOCALE || 'en-PH',
         theme: 'system',
@@ -100,7 +100,7 @@
   function applyBranding() {
     document.title = `${config.APP_NAME || 'Finora'} by ${config.APP_OWNER || 'DesignLab'}`;
     $$('[data-app-name]').forEach((node) => node.textContent = config.APP_NAME || 'Finora');
-    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.1');
+    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.2');
     const usernameInput = $('input[name="username"]', els.loginForm);
     if (usernameInput && config.DEFAULT_USERNAME) usernameInput.value = config.DEFAULT_USERNAME;
   }
@@ -334,23 +334,28 @@
     };
     merged.accounts = merged.accounts.map((a) => ({ includeNetWorth: true, currency: merged.meta.currency || 'PHP', openingBalance: 0, ...a, openingBalance: Number(a.openingBalance || 0) }));
     merged.transactions = merged.transactions.map((t) => {
-      const categories = normalizeCategoryArray(t.categories?.length ? t.categories : (t.category ? [t.category] : []));
+      const category = cleanCategory(t.category || (Array.isArray(t.categories) ? t.categories[0] : ''));
+      const categories = category ? [category] : [];
+      const budgetIds = normalizeBudgetIdArray(Array.isArray(t.budgetIds) && t.budgetIds.length ? t.budgetIds : (t.budgetId ? [t.budgetId] : []));
       return {
         ...t,
         amount: Number(t.amount || 0),
-        category: categories[0] || cleanCategory(t.category),
+        category,
         categories,
-        budgetId: t.budgetId || '',
-        includeInBudget: typeof t.includeInBudget === 'boolean' ? t.includeInBudget : (t.budgetId ? true : undefined)
+        budgetIds,
+        budgetId: budgetIds[0] || '',
+        includeInBudget: typeof t.includeInBudget === 'boolean' ? t.includeInBudget : (budgetIds.length ? true : undefined)
       };
     });
     merged.budgets = merged.budgets.map((b) => {
-      const categories = normalizeCategoryArray(b.categories?.length ? b.categories : (b.category ? [b.category] : []));
-      return { active: true, accountId: '', category: categories[0] || '', categories, period: 'monthly', ...b, limit: Number(b.limit || b.amount || 0), accountId: b.accountId || '', category: categories[0] || '', categories };
+      const category = cleanCategory(b.category || (Array.isArray(b.categories) ? b.categories[0] : ''));
+      const categories = category ? [category] : [];
+      return { active: true, accountId: '', category, categories, period: 'monthly', ...b, limit: Number(b.limit || b.amount || 0), accountId: b.accountId || '', category, categories };
     });
     merged.recurring = merged.recurring.map((r) => {
-      const categories = normalizeCategoryArray(r.categories?.length ? r.categories : (r.category ? [r.category] : []));
-      return { active: true, ...r, amount: Number(r.amount || 0), category: categories[0] || cleanCategory(r.category), categories };
+      const category = cleanCategory(r.category || (Array.isArray(r.categories) ? r.categories[0] : ''));
+      const categories = category ? [category] : [];
+      return { active: true, ...r, amount: Number(r.amount || 0), category, categories };
     });
     merged.categories = uniqueCategories([
       ...DEFAULT_CATEGORIES,
@@ -487,7 +492,7 @@
       .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt)));
 
     tbody.innerHTML = rows.map((t) => {
-      const budgetLine = t.includeInBudget && t.budgetId ? ` • Budget: ${budgetName(t.budgetId)}` : t.includeInBudget === false ? ' • No budget' : '';
+      const budgetLine = t.includeInBudget && getItemBudgetIds(t).length ? ` • Budget: ${budgetNames(t)}` : t.includeInBudget === false ? ' • No budget' : '';
       return `
       <tr>
         <td>${formatDate(t.date)}</td>
@@ -633,7 +638,7 @@
   }
 
   function transactionRow(t) {
-    const budgetText = t.includeInBudget && t.budgetId ? ` • ${budgetName(t.budgetId)}` : '';
+    const budgetText = t.includeInBudget && getItemBudgetIds(t).length ? ` • ${budgetNames(t)}` : '';
     return `<article class="list-row"><span class="emoji">${t.type === 'income' ? '💰' : t.type === 'transfer' ? '🔁' : '🧾'}</span><div><h4>${escapeHtml(categoriesLabel(t, titleCase(t.type)))}</h4><p>${formatDate(t.date)} • ${escapeHtml(accountName(t.accountId))}${t.type === 'transfer' ? ` → ${escapeHtml(accountName(t.toAccountId))}` : ''}${escapeHtml(budgetText)}</p></div><div class="row-right"><strong class="money ${t.type}">${t.type === 'expense' ? '−' : t.type === 'income' ? '+' : ''}${money(t.amount)}</strong></div></article>`;
   }
 
@@ -651,7 +656,7 @@
       .filter((t) => t.date >= start && t.date <= end)
       .filter((t) => {
         const hasExplicitBudgetChoice = typeof t.includeInBudget === 'boolean' || !!t.budgetId;
-        if (hasExplicitBudgetChoice) return t.includeInBudget === true && t.budgetId === budget.id;
+        if (hasExplicitBudgetChoice) return t.includeInBudget === true && getItemBudgetIds(t).includes(budget.id);
         const accountMatches = !budget.accountId || t.accountId === budget.accountId;
         const categoryMatches = budgetMatchesTransactionCategories(budget, t);
         return accountMatches && categoryMatches;
@@ -764,25 +769,26 @@
 
   function openTransactionModal(transaction = {}) {
     const editing = !!transaction.id;
-    const data = { id: id(), type: 'expense', accountId: state.accounts[0]?.id || '', toAccountId: state.accounts[1]?.id || '', amount: 0, category: '', categories: [], date: todayISO(), merchant: '', notes: '', budgetId: '', includeInBudget: false, ...transaction };
-    data.categories = getItemCategories(data);
-    data.category = data.categories[0] || cleanCategory(data.category);
-    const includeBudgetChecked = data.type === 'expense' && data.includeInBudget === true && data.budgetId;
+    const data = { id: id(), type: 'expense', accountId: state.accounts[0]?.id || '', toAccountId: state.accounts[1]?.id || '', amount: 0, category: '', categories: [], date: todayISO(), merchant: '', notes: '', budgetId: '', budgetIds: [], includeInBudget: false, ...transaction };
+    const selectedBudgetIds = getItemBudgetIds(data);
+    data.category = cleanCategory(data.category || (Array.isArray(data.categories) ? data.categories[0] : ''));
+    data.categories = data.category ? [data.category] : [];
+    const includeBudgetChecked = data.type === 'expense' && data.includeInBudget === true && selectedBudgetIds.length;
     openModal(`${editing ? 'Edit' : 'Add'} transaction`, `<form id="transactionForm" class="form-grid">
       <label>Type<select name="type" id="txType">${options(['expense','income','transfer'], data.type)}</select></label>
       <label>Amount<input name="amount" type="number" step="0.01" min="0" required value="${Number(data.amount || 0)}"></label>
       <label>Account<select name="accountId" required>${accountOptions(data.accountId)}</select></label>
       <label class="to-account-field">To account<select name="toAccountId">${accountOptions(data.toAccountId)}</select></label>
       <label>Date<input name="date" type="date" required value="${attr(data.date || todayISO())}"></label>
-      <div class="span category-picker">
-        <div class="field-label-row"><span>Categories</span><small>Toggle one or more</small></div>
-        <div class="category-toggle-list" id="txCategoryToggleGroup">${categoryToggleOptions(data.categories)}</div>
-        <div class="inline-add-category"><input name="newCategory" id="txNewCategory" placeholder="Add category, e.g. Groceries"><button class="secondary-button compact-button" id="txAddCategory" type="button">Add</button></div>
-        <p class="tiny-help">Use multiple categories when one expense touches more than one area. Category charts split the amount evenly so totals stay clean.</p>
-      </div>
+      <label>Category<select name="category" id="txCategory">${categoryOptions(data.category)}</select></label>
+      <div class="inline-add-category span"><input name="newCategory" id="txNewCategory" placeholder="Add category, e.g. Groceries"><button class="secondary-button compact-button" id="txAddCategory" type="button">Add category</button></div>
       <label>Merchant / Source<input name="merchant" value="${attr(data.merchant)}" placeholder="Optional"></label>
-      <label class="toggle-row span budget-toggle-field"><input name="includeInBudget" id="txIncludeBudget" type="checkbox" ${includeBudgetChecked ? 'checked' : ''}><span>Include this transaction in a budget</span></label>
-      <label class="span budget-link-field hidden">Which budget<select name="budgetId" id="txBudgetId">${budgetOptions(data.budgetId)}</select></label>
+      <label class="toggle-row span budget-toggle-field"><input name="includeInBudget" id="txIncludeBudget" type="checkbox" ${includeBudgetChecked ? 'checked' : ''}><span>Include this transaction in budget/s</span></label>
+      <div class="span budget-link-field hidden">
+        <div class="field-label-row"><span>Which budgets</span><small>Choose one or more</small></div>
+        <div class="category-toggle-list budget-toggle-list" id="txBudgetToggleGroup">${budgetToggleOptions(selectedBudgetIds)}</div>
+        <p class="tiny-help">Use multiple budgets when one expense should update more than one spending limit.</p>
+      </div>
       <label class="span">Notes<textarea name="notes">${escapeHtml(data.notes || '')}</textarea></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save transaction</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
@@ -796,57 +802,51 @@
     };
     txType.addEventListener('change', () => { toggleTo(); toggleBudget(); });
     includeBudget.addEventListener('change', toggleBudget);
-    bindCategoryQuickAdd('#txNewCategory', '#txAddCategory', '#txCategoryToggleGroup', true);
+    bindCategoryDropdownQuickAdd('#txNewCategory', '#txAddCategory', '#txCategory', false);
     toggleTo(); toggleBudget();
     $('#transactionForm').addEventListener('submit', (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);
-      let categories = normalizeCategoryArray(form.getAll('categories'));
       const typedCategory = cleanCategory(form.get('newCategory'));
-      if (typedCategory) {
-        addCategoryToState(typedCategory);
-        categories = uniqueCategories([...categories, typedCategory]);
-      }
+      let category = typedCategory || cleanCategory(form.get('category'));
+      if (category === '__new') category = '';
+      if (typedCategory) addCategoryToState(typedCategory);
+      const categories = category ? [category] : [];
       const includeInBudget = form.get('type') === 'expense' && !!form.get('includeInBudget');
-      const selectedBudgetId = includeInBudget ? String(form.get('budgetId') || '') : '';
-      if (includeInBudget && !selectedBudgetId) return toast('Choose a budget or turn off budget inclusion.');
-      const next = { ...data, type: form.get('type'), amount: Number(form.get('amount') || 0), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', date: form.get('date'), category: categories[0] || '', categories, merchant: form.get('merchant'), notes: form.get('notes'), includeInBudget, budgetId: selectedBudgetId, updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
+      const selectedBudgetIds = includeInBudget ? getValidBudgetIds(form.getAll('budgetIds')) : [];
+      if (includeInBudget && !selectedBudgetIds.length) return toast('Choose at least one budget or turn off budget inclusion.');
+      const next = { ...data, type: form.get('type'), amount: Number(form.get('amount') || 0), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', date: form.get('date'), category, categories, merchant: form.get('merchant'), notes: form.get('notes'), includeInBudget, budgetIds: selectedBudgetIds, budgetId: selectedBudgetIds[0] || '', updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
       if (next.type !== 'transfer') next.toAccountId = '';
-      if (next.type !== 'expense') { next.includeInBudget = false; next.budgetId = ''; }
-      upsert('transactions', next); closeModal(); renderAll(); markDirty(); toast(includeInBudget ? 'Transaction saved and linked to budget.' : 'Transaction saved.');
+      if (next.type !== 'expense') { next.includeInBudget = false; next.budgetIds = []; next.budgetId = ''; }
+      upsert('transactions', next); closeModal(); renderAll(); markDirty(); toast(includeInBudget ? 'Transaction saved and linked to budget/s.' : 'Transaction saved.');
     });
   }
 
   function openBudgetModal(budget = null) {
     const editing = !!budget;
     const data = budget || { id: id(), name: '', accountId: '', category: '', categories: [], period: 'monthly', limit: 0, active: true };
-    data.categories = getItemCategories(data);
-    data.category = data.categories[0] || cleanCategory(data.category);
+    data.category = cleanCategory(data.category || (Array.isArray(data.categories) ? data.categories[0] : ''));
+    data.categories = data.category ? [data.category] : [];
     openModal(`${editing ? 'Edit' : 'Add'} budget`, `<form id="budgetForm" class="form-grid">
       <label>Name<input name="name" required value="${attr(data.name)}" placeholder="Monthly spending"></label>
       <label>Limit<input name="limit" type="number" step="0.01" min="0" required value="${Number(data.limit || 0)}"></label>
       <label>Account scope<select name="accountId">${budgetAccountOptions(data.accountId || '')}</select></label>
       <label>Period<select name="period">${options(['daily','weekly','monthly','yearly'], data.period)}</select></label>
-      <div class="span category-picker">
-        <div class="field-label-row"><span>Category scope</span><small>Leave empty for all categories</small></div>
-        <div class="category-toggle-list" id="budgetCategoryToggleGroup">${categoryToggleOptions(data.categories)}</div>
-        <div class="inline-add-category"><input name="newCategory" id="budgetNewCategory" placeholder="Add category, e.g. Groceries"><button class="secondary-button compact-button" id="budgetAddCategory" type="button">Add</button></div>
-        <p class="tiny-help">No selected category means this budget can be used for all categories. Select multiple categories when one budget covers related spending areas.</p>
-      </div>
-      <p class="tiny-help span">Budget can track all accounts, one selected account, all categories, or selected category toggles. Transactions only update a budget when you choose to include them.</p>
+      <label>Category scope<select name="category" id="budgetCategory">${categoryOptions(data.category, 'budget')}</select></label>
+      <div class="inline-add-category span"><input name="newCategory" id="budgetNewCategory" placeholder="Add category, e.g. Groceries"><button class="secondary-button compact-button" id="budgetAddCategory" type="button">Add category</button></div>
+      <p class="tiny-help span">Budget can track all accounts or one selected account, and all categories or one selected category. A transaction can be linked to multiple budgets.</p>
       <label class="toggle-row span"><input name="active" type="checkbox" ${data.active !== false ? 'checked' : ''}><span>Active budget</span></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save budget</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
-    bindCategoryQuickAdd('#budgetNewCategory', '#budgetAddCategory', '#budgetCategoryToggleGroup', true);
+    bindCategoryDropdownQuickAdd('#budgetNewCategory', '#budgetAddCategory', '#budgetCategory', true);
     $('#budgetForm').addEventListener('submit', (event) => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
-      let categories = normalizeCategoryArray(form.getAll('categories'));
       const typedCategory = cleanCategory(form.get('newCategory'));
-      if (typedCategory) {
-        addCategoryToState(typedCategory);
-        categories = uniqueCategories([...categories, typedCategory]);
-      }
-      upsert('budgets', { ...data, name: form.get('name'), limit: Number(form.get('limit') || 0), accountId: form.get('accountId') || '', category: categories[0] || '', categories, period: form.get('period'), active: !!form.get('active'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() });
+      let category = typedCategory || cleanCategory(form.get('category'));
+      if (category === '__new') category = '';
+      if (typedCategory) addCategoryToState(typedCategory);
+      const categories = category ? [category] : [];
+      upsert('budgets', { ...data, name: form.get('name'), limit: Number(form.get('limit') || 0), accountId: form.get('accountId') || '', category, categories, period: form.get('period'), active: !!form.get('active'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() });
       closeModal(); renderAll(); markDirty(); toast('Budget saved and synced to this Finora account.');
     });
   }
@@ -883,8 +883,8 @@
   function openRecurringModal(recurring = null) {
     const editing = !!recurring;
     const data = recurring || { id: id(), name: '', type: 'expense', accountId: state.accounts[0]?.id || '', toAccountId: '', amount: 0, category: '', categories: [], frequency: 'monthly', nextDate: todayISO(), active: true, notes: '' };
-    data.categories = getItemCategories(data);
-    data.category = data.categories[0] || cleanCategory(data.category);
+    data.category = cleanCategory(data.category || (Array.isArray(data.categories) ? data.categories[0] : ''));
+    data.categories = data.category ? [data.category] : [];
     openModal(`${editing ? 'Edit' : 'Add'} recurring`, `<form id="recurringForm" class="form-grid">
       <label>Name<input name="name" required value="${attr(data.name)}" placeholder="Salary, Internet bill…"></label>
       <label>Type<select name="type" id="recType">${options(['expense','income','transfer'], data.type)}</select></label>
@@ -893,27 +893,23 @@
       <label>Account<select name="accountId" required>${accountOptions(data.accountId)}</select></label>
       <label class="rec-to-field">To account<select name="toAccountId">${accountOptions(data.toAccountId)}</select></label>
       <label>Next date<input name="nextDate" type="date" required value="${attr(data.nextDate || todayISO())}"></label>
-      <div class="span category-picker">
-        <div class="field-label-row"><span>Categories</span><small>Toggle one or more</small></div>
-        <div class="category-toggle-list" id="recCategoryToggleGroup">${categoryToggleOptions(data.categories)}</div>
-        <div class="inline-add-category"><input name="newCategory" id="recNewCategory" placeholder="Add category, e.g. Subscription"><button class="secondary-button compact-button" id="recAddCategory" type="button">Add</button></div>
-      </div>
+      <label>Category<select name="category" id="recCategory">${categoryOptions(data.category)}</select></label>
+      <div class="inline-add-category span"><input name="newCategory" id="recNewCategory" placeholder="Add category, e.g. Subscription"><button class="secondary-button compact-button" id="recAddCategory" type="button">Add category</button></div>
       <label class="toggle-row span"><input name="active" type="checkbox" ${data.active !== false ? 'checked' : ''}><span>Active recurring item</span></label>
       <label class="span">Notes<textarea name="notes">${escapeHtml(data.notes || '')}</textarea></label>
       <div class="button-row span"><button class="primary-button" type="submit">Save recurring</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
     </form>`);
     const recType = $('#recType'); const toggleTo = () => $('.rec-to-field').classList.toggle('hidden', recType.value !== 'transfer');
     recType.addEventListener('change', toggleTo); toggleTo();
-    bindCategoryQuickAdd('#recNewCategory', '#recAddCategory', '#recCategoryToggleGroup', true);
+    bindCategoryDropdownQuickAdd('#recNewCategory', '#recAddCategory', '#recCategory', false);
     $('#recurringForm').addEventListener('submit', (event) => {
       event.preventDefault(); const form = new FormData(event.currentTarget);
-      let categories = normalizeCategoryArray(form.getAll('categories'));
       const typedCategory = cleanCategory(form.get('newCategory'));
-      if (typedCategory) {
-        addCategoryToState(typedCategory);
-        categories = uniqueCategories([...categories, typedCategory]);
-      }
-      const next = { ...data, name: form.get('name'), type: form.get('type'), amount: Number(form.get('amount') || 0), frequency: form.get('frequency'), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', nextDate: form.get('nextDate'), category: categories[0] || '', categories, active: !!form.get('active'), notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
+      let category = typedCategory || cleanCategory(form.get('category'));
+      if (category === '__new') category = '';
+      if (typedCategory) addCategoryToState(typedCategory);
+      const categories = category ? [category] : [];
+      const next = { ...data, name: form.get('name'), type: form.get('type'), amount: Number(form.get('amount') || 0), frequency: form.get('frequency'), accountId: form.get('accountId'), toAccountId: form.get('toAccountId') || '', nextDate: form.get('nextDate'), category, categories, active: !!form.get('active'), notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
       if (next.type !== 'transfer') next.toAccountId = '';
       upsert('recurring', next); closeModal(); renderAll(); markDirty(); toast('Recurring item saved.');
     });
@@ -941,8 +937,9 @@
   function postRecurring(recurringId) {
     const r = state.recurring.find((item) => item.id === recurringId);
     if (!r) return;
-    const categories = getItemCategories(r);
-    const t = { id: id(), type: r.type, accountId: r.accountId, toAccountId: r.toAccountId || '', amount: Number(r.amount || 0), category: categories[0] || r.name, categories, merchant: 'Recurring', notes: r.notes || `Posted from recurring: ${r.name}`, date: todayISO(), recurringId: r.id, createdAt: nowISO(), updatedAt: nowISO() };
+    const category = cleanCategory(r.category || (Array.isArray(r.categories) ? r.categories[0] : '') || r.name);
+    const categories = category ? [category] : [];
+    const t = { id: id(), type: r.type, accountId: r.accountId, toAccountId: r.toAccountId || '', amount: Number(r.amount || 0), category, categories, merchant: 'Recurring', notes: r.notes || `Posted from recurring: ${r.name}`, date: todayISO(), recurringId: r.id, budgetIds: [], budgetId: '', includeInBudget: false, createdAt: nowISO(), updatedAt: nowISO() };
     state.transactions.push(t);
     r.nextDate = advanceDate(r.nextDate || todayISO(), r.frequency || 'monthly');
     r.updatedAt = nowISO();
@@ -1069,7 +1066,7 @@
 
   function exportCsv() {
     const headers = ['date','type','account','to_account','categories','budget','merchant','notes','amount'];
-    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), categoriesLabel(t, ''), t.includeInBudget && t.budgetId ? budgetName(t.budgetId) : '', t.merchant, t.notes, t.amount]);
+    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), categoriesLabel(t, ''), t.includeInBudget && getItemBudgetIds(t).length ? budgetNames(t) : '', t.merchant, t.notes, t.amount]);
     const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
     downloadFile(`finora-transactions-${todayISO()}.csv`, csv, 'text/csv');
   }
@@ -1092,7 +1089,7 @@
 
   function openDocModal(kind) {
     const docs = {
-      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, account-scoped budgets, manual transaction-to-budget links, toggleable multi-category records, category dropdown manager, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, sync finance records across your own devices, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
+      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, account-scoped budgets, manual transaction-to-budget links, single-category records, multi-budget transaction links, category dropdown manager, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, sync finance records across your own devices, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
       terms: ['Terms of Use', `<div class="legal-copy"><p>Finora is provided as a personal finance tracker and planning tool by DesignLab. It is not financial, accounting, tax, or legal advice.</p><p>Review all figures before making financial decisions. You are responsible for protecting your login credentials, backups, and Supabase project access.</p></div>`],
       security: ['Security Notes', `<div class="legal-copy"><p>This edition uses Supabase RPC functions, password hashing through Postgres pgcrypto, hashed session tokens, failed-login lockout, owner recovery code, and no direct table access through the public client.</p><p>Before any public launch, migrate to Supabase Auth or a dedicated backend, configure production monitoring, and complete a proper privacy/legal review.</p></div>`]
     };
@@ -1139,12 +1136,26 @@
   function accountOptions(selected, includeEmpty = true) { return (includeEmpty && !state.accounts.length ? '<option value="">No accounts yet</option>' : '') + state.accounts.map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join(''); }
   function budgetAccountOptions(selected) { return '<option value="" ' + (!selected ? 'selected' : '') + '>All accounts</option>' + state.accounts.map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join(''); }
   function budgetName(budgetId) { return state.budgets.find((b) => b.id === budgetId)?.name || 'No budget'; }
-  function budgetOptions(selected) {
+  function budgetNames(item) { const ids = Array.isArray(item) ? item : getItemBudgetIds(item); return ids.map(budgetName).filter((name) => name && name !== 'No budget').join(' + ') || 'No budget'; }
+  function getItemBudgetIds(item) {
+    const raw = Array.isArray(item?.budgetIds) ? item.budgetIds : (item?.budgetId ? [item.budgetId] : []);
+    return getValidBudgetIds(raw);
+  }
+  function normalizeBudgetIdArray(values) {
+    const seen = new Set();
+    return (Array.isArray(values) ? values : [values]).map((value) => String(value || '').trim()).filter(Boolean).filter((value) => { if (seen.has(value)) return false; seen.add(value); return true; });
+  }
+  function getValidBudgetIds(values) {
+    const valid = new Set((state?.budgets || []).map((b) => b.id));
+    return normalizeBudgetIdArray(values).filter((value) => !valid.size || valid.has(value));
+  }
+  function budgetToggleOptions(selected = []) {
+    const selectedSet = new Set(getValidBudgetIds(selected));
     const budgets = state.budgets.filter((b) => b.active !== false);
-    if (!budgets.length) return '<option value="">No active budgets yet</option>';
-    return '<option value="">Select budget</option>' + budgets.map((b) => {
+    if (!budgets.length) return empty('No active budgets yet. Create a budget first.');
+    return budgets.map((b) => {
       const scope = `${b.accountId ? accountName(b.accountId) : 'All accounts'} • ${budgetCategoryScope(b)}`;
-      return `<option value="${b.id}" ${b.id === selected ? 'selected' : ''}>${escapeHtml(b.name)} — ${escapeHtml(scope)}</option>`;
+      return `<label class="category-toggle"><input type="checkbox" name="budgetIds" value="${attr(b.id)}" ${selectedSet.has(b.id) ? 'checked' : ''}><span>${escapeHtml(b.name)} <small>— ${escapeHtml(scope)}</small></span></label>`;
     }).join('');
   }
   function categoryOptions(selected, mode = 'transaction') {
@@ -1161,6 +1172,20 @@
     const items = getCategories();
     if (!items.length) return empty('No categories yet. Add one below.');
     return items.map((item) => `<label class="category-toggle"><input type="checkbox" name="categories" value="${attr(item)}" ${selectedSet.has(item.toLowerCase()) ? 'checked' : ''}><span>${escapeHtml(item)}</span></label>`).join('');
+  }
+  function bindCategoryDropdownQuickAdd(inputSelector, buttonSelector, selectSelector, allowAll = false) {
+    const input = $(inputSelector);
+    const button = $(buttonSelector);
+    const select = $(selectSelector);
+    if (!input || !button || !select) return;
+    button.addEventListener('click', () => {
+      const value = cleanCategory(input.value);
+      if (!value) return toast('Enter a category name.');
+      addCategoryToState(value);
+      select.innerHTML = categoryOptions(value, allowAll ? 'budget' : 'transaction');
+      input.value = '';
+      toast('Category added.');
+    });
   }
   function bindCategoryQuickAdd(inputSelector, buttonSelector, groupSelector, checkNew = true) {
     const input = $(inputSelector);

@@ -137,3 +137,8 @@ This is still saved inside the signed-in Finora account in Supabase. Log in as `
 ## Auto-sync and budget linking
 
 Finora v2.1.1 keeps the v2.1.0 auto-sync behavior and adds toggleable multi-category chips. Expense transactions can now be assigned to zero, one, or multiple categories. Budgets can also be scoped to all categories or multiple selected categories. Category charts split multi-category expenses evenly so totals stay clean.
+
+
+## Finora v2.1.2 — Multi-Budget Transactions + Single Category
+
+This update corrects v2.1.1: categories are single-select dropdowns again, while the transaction budget selector supports multiple selected budgets. Use this when one expense should update two or more budgets.

@@ -1,4 +1,4 @@
-Finora v2.1.1 — Toggleable Multi-Categories Deploy Build
+Finora v2.1.2 — Multi-Budget Transactions + Single Category Deploy Build
 
 Upload the CONTENTS of this folder directly to the repository root.
 
@@ -20,7 +20,7 @@ Important:
 - Keep CNAME at the repository root for finora.madebydesignlab.com.
 
 After upload, open:
-https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.1
+https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.2
 
 or custom domain:
 https://finora.madebydesignlab.com

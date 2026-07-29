@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.2 — Multi-Budget Transactions + Single Category
+
+- Reverted transaction, budget, and recurring categories to single-select dropdowns.
+- Kept quick category creation beside the dropdowns.
+- Added multi-select budget chips in the transaction form when budget inclusion is turned on.
+- Added `budgetIds` migration while keeping legacy `budgetId` compatibility.
+- Budget calculations now count a transaction toward every selected budget.
+
+
 ## v2.1.1 — Toggleable Multi-Categories
 
 - Changed transaction categories from a single dropdown into toggleable category chips.

@@ -5,7 +5,7 @@
 - Product name: **Finora**
 - Owner brand: **DesignLab**
 - Edition: **Supabase Edition**
-- Version: **2.1.1**
+- Version: **2.1.2**
 - Intended use: **personal / in-house**
 - Default currency: **PHP**
 - Default locale: **en-PH**
@@ -96,3 +96,8 @@ v2.1.2 — Transaction Polish
 v2.2.0 — Smarter Budget Reports
 v3.0.0 — Public Auth / Supabase Auth Edition
 ```
+
+
+## v2.1.2 budget/category correction
+
+Categories are single-select again. Transaction budget linking now supports selecting multiple budgets through toggle chips.
