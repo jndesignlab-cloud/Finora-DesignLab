@@ -136,4 +136,4 @@ This is still saved inside the signed-in Finora account in Supabase. Log in as `
 
 ## Auto-sync and budget linking
 
-Finora v2.1.0 automatically pulls cloud data on login and when returning to the app if there are no unsaved local changes. It also auto-saves after edits. Expense transactions now include an optional budget toggle and budget selector, so budgets update only when a transaction is assigned to a budget. Categories are managed through Settings and appear as dropdown choices across transactions, budgets, and recurring items.
+Finora v2.1.1 keeps the v2.1.0 auto-sync behavior and adds toggleable multi-category chips. Expense transactions can now be assigned to zero, one, or multiple categories. Budgets can also be scoped to all categories or multiple selected categories. Category charts split multi-category expenses evenly so totals stay clean.

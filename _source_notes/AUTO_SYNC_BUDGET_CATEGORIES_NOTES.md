@@ -1,4 +1,4 @@
-# Finora v2.1.0 — Auto-Sync, Budget Links, and Categories
+# Finora v2.1.1 — Auto-Sync, Budget Links, and Categories
 
 This update improves multi-device use and transaction budgeting.
 

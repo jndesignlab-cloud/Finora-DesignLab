@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.1.1 — Toggleable Multi-Categories
+
+- Changed transaction categories from a single dropdown into toggleable category chips.
+- Transactions can now carry multiple categories for one expense.
+- Budget category scopes can now use multiple selected categories, or none for All Categories.
+- Recurring items can now carry multiple categories.
+- Added quick category creation inside transaction, budget, and recurring forms.
+- Category charts split a multi-category expense evenly across selected categories so the total does not double count.
+- CSV export now outputs combined categories.
+
 ## v2.1.0 — Auto-Sync, Budget Links, and Categories
 
 - Added auto-pull on login, tab focus, online return, and visibility return.

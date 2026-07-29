@@ -536,3 +536,17 @@ input:focus,select:focus,textarea:focus{
 
 /* Finora v2.1.0 — Auto-sync, budget links, and category manager */
 .category-form{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:14px}.category-chip-list{display:flex;flex-wrap:wrap;gap:8px}.category-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(250,252,255,.88);border-radius:999px;padding:7px 10px;font-size:13px;font-weight:700;color:var(--ink)}[data-theme="dark"] .category-chip{background:rgba(255,255,255,.05)}.category-chip button{border:0;background:rgba(26,102,255,.10);color:var(--blue);border-radius:999px;width:20px;height:20px;display:grid;place-items:center;padding:0;font-weight:800}.budget-toggle-field{align-items:flex-start}.budget-link-field select,.new-category-field input,.new-budget-category-field input,.new-rec-category-field input{width:100%}.data-table small{line-height:1.45}@media(max-width:660px){.category-form{grid-template-columns:1fr}.category-form .secondary-button{width:100%}}
+
+
+/* Finora v2.1.1 — Toggleable multi-category chips */
+.category-picker{display:grid;gap:10px;border:1px solid var(--line);border-radius:22px;padding:14px;background:rgba(247,250,255,.72)}
+.field-label-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-end;font-size:13px;font-weight:800;color:var(--ink)}
+.field-label-row small{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.category-toggle-list{display:flex;flex-wrap:wrap;gap:8px;max-height:168px;overflow:auto;padding:2px}
+.category-toggle{display:inline-flex;align-items:center;cursor:pointer;user-select:none}
+.category-toggle input{position:absolute;opacity:0;pointer-events:none}
+.category-toggle span{display:inline-flex;align-items:center;min-height:34px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.88);font-size:13px;font-weight:700;color:var(--muted);transition:.18s ease}
+.category-toggle input:checked + span{border-color:transparent;color:#fff;background:linear-gradient(135deg,var(--blue),var(--purple));box-shadow:0 10px 20px rgba(58,64,255,.18)}
+.inline-add-category{display:grid;grid-template-columns:1fr auto;gap:8px}.inline-add-category input{width:100%}
+[data-theme="dark"] .category-picker{background:rgba(255,255,255,.04)}[data-theme="dark"] .category-toggle span{background:rgba(255,255,255,.06)}
+@media(max-width:660px){.field-label-row{align-items:flex-start;flex-direction:column}.inline-add-category{grid-template-columns:1fr}.inline-add-category .secondary-button{width:100%}}

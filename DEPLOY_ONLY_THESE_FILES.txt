@@ -1,6 +1,8 @@
-Finora v2.1.0 — Auto-Sync, Budget Links, and Categories Deploy Build
+Finora v2.1.1 — Toggleable Multi-Categories Deploy Build
 
-Upload these root contents directly to the GitHub repository root:
+Upload the CONTENTS of this folder directly to the repository root.
+
+Required root layout:
 
 index.html
 assets/
@@ -10,28 +12,17 @@ service-worker.js
 CNAME
 supabase/
 VERSION
-DEPLOY_ONLY_THESE_FILES.txt
 _source_notes/
 
-Custom domain included:
-finora.madebydesignlab.com
+Important:
+- Do not upload the outer folder only.
+- Do not paste notes into index.html.
+- Keep CNAME at the repository root for finora.madebydesignlab.com.
 
-Required DNS record:
-Type: CNAME
-Host/Name: finora
-Target/Value: jndesignlab-cloud.github.io
+After upload, open:
+https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.1
 
-After upload, set GitHub Pages custom domain to:
-finora.madebydesignlab.com
-
-Temporary cache-busting URL:
-https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.0
-
-Final domain after DNS and HTTPS are active:
+or custom domain:
 https://finora.madebydesignlab.com
 
-
-New in this build:
-- Budgets can now be linked to All Accounts or one selected account.
-- Budget spending calculations now respect account scope and category scope.
-- Same Finora login can open the same Supabase-synced data from another PC or phone.
+Hard refresh with Ctrl + Shift + R after deployment.
