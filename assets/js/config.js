@@ -7,7 +7,7 @@ window.FINORA_CONFIG = {
   APP_NAME: "Finora",
   APP_OWNER: "DesignLab",
   APP_TAGLINE: "Money planning by DesignLab",
-  VERSION: "2.1.2",
+  VERSION: "2.1.3",
   EDITION: "Supabase Edition",
 
   SUPABASE_URL: "https://yqlvdciruweoozisjone.supabase.co",

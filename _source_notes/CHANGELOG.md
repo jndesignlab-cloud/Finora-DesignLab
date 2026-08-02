@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.1.3 — Invitation Home + Clean App Route
+- Added a public Finora hero homepage with feature sections and Q&A.
+- Changed homepage Log in action into an invitation-only modal.
+- Moved the actual app login/dashboard to `/app/`.
+- Added `/login.html` as a private/manual entry point that redirects to `/app/`.
+- Updated PWA start URL and service-worker cache for the new route structure.
+- Kept v2.1.2 multi-budget transaction linking and single-category dropdown behavior.
+
+
 ## v2.1.2 — Multi-Budget Transactions + Single Category
 
 - Reverted transaction, budget, and recurring categories to single-select dropdowns.

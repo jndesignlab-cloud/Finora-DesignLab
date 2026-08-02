@@ -1,28 +1,25 @@
-Finora v2.1.2 — Multi-Budget Transactions + Single Category Deploy Build
+Finora v2.1.3 — Invitation Home + Clean App Route
 
-Upload the CONTENTS of this folder directly to the repository root.
+Upload the CONTENTS of this folder to the GitHub Pages repository root.
 
-Required root layout:
+Root should include:
+- index.html                     Public invitation-only hero page
+- login.html                     Private entry redirect to /app/
+- app/index.html                 Actual Finora application login/dashboard
+- assets/
+- manifest.webmanifest
+- service-worker.js
+- .nojekyll
+- CNAME
+- VERSION
+- supabase/
+- _source_notes/
 
-index.html
-assets/
-manifest.webmanifest
-service-worker.js
-.nojekyll
-CNAME
-supabase/
-VERSION
-_source_notes/
+Public homepage:
+https://finora.madebydesignlab.com/
 
-Important:
-- Do not upload the outer folder only.
-- Do not paste notes into index.html.
-- Keep CNAME at the repository root for finora.madebydesignlab.com.
+Private app entry:
+https://finora.madebydesignlab.com/login.html
 
-After upload, open:
-https://jndesignlab-cloud.github.io/Finora-DesignLab/?v=2.1.2
-
-or custom domain:
-https://finora.madebydesignlab.com
-
-Hard refresh with Ctrl + Shift + R after deployment.
+After opening login.html, the browser redirects to:
+https://finora.madebydesignlab.com/app/

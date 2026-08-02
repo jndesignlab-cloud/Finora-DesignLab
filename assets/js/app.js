@@ -26,7 +26,7 @@
     const createdAt = nowISO();
     return {
       meta: {
-        version: config.VERSION || '2.1.2',
+        version: config.VERSION || '2.1.3',
         currency: config.DEFAULT_CURRENCY || 'PHP',
         locale: config.DEFAULT_LOCALE || 'en-PH',
         theme: 'system',
@@ -78,7 +78,7 @@
     }
 
     if ('serviceWorker' in navigator && config.FEATURES?.PWA) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(() => {}));
+      window.addEventListener('load', () => navigator.serviceWorker.register('../service-worker.js').catch(() => {}));
     }
   }
 
@@ -100,7 +100,7 @@
   function applyBranding() {
     document.title = `${config.APP_NAME || 'Finora'} by ${config.APP_OWNER || 'DesignLab'}`;
     $$('[data-app-name]').forEach((node) => node.textContent = config.APP_NAME || 'Finora');
-    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.2');
+    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.3');
     const usernameInput = $('input[name="username"]', els.loginForm);
     if (usernameInput && config.DEFAULT_USERNAME) usernameInput.value = config.DEFAULT_USERNAME;
   }

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Opening Finora…</title>
+  <meta http-equiv="refresh" content="0; url=app/">
+  <style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Inter,system-ui,sans-serif;background:#f7faff;color:#071a35}.card{padding:26px;border-radius:24px;background:white;box-shadow:0 24px 70px rgba(37,87,255,.12);text-align:center}a{color:#2557ff}</style>
+</head>
+<body>
+  <div class="card">
+    <strong>Opening Finora…</strong>
+    <p>If you are not redirected, <a id="manualLink" href="app/">continue to the app</a>.</p>
+  </div>
+  <script>
+    const target = 'app/' + window.location.search + window.location.hash;
+    document.getElementById('manualLink').setAttribute('href', target);
+    window.location.replace(target);
+  </script>
+</body>
+</html>
