@@ -11,10 +11,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../assets/css/styles.css?v=2.1.3">
+  <link rel="stylesheet" href="../assets/css/styles.css?v=2.1.4">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script defer src="../assets/js/config.js?v=2.1.3"></script>
-  <script defer src="../assets/js/app.js?v=2.1.3"></script>
+  <script defer src="../assets/js/config.js?v=2.1.4"></script>
+  <script defer src="../assets/js/app.js?v=2.1.4"></script>
 </head>
 <body>
   <noscript>Finora requires JavaScript to run.</noscript>
@@ -85,6 +85,7 @@
         <button class="nav-item" data-route="transactions"><span>↕</span>Transactions</button>
         <button class="nav-item" data-route="accounts"><span>▣</span>Accounts</button>
         <button class="nav-item" data-route="budget"><span>◎</span>Budget</button>
+        <button class="nav-item" data-route="owes"><span>☑</span>Owes</button>
         <button class="nav-item" data-route="goals"><span>◇</span>Goals</button>
         <button class="nav-item" data-route="recurring"><span>⟳</span>Recurring</button>
         <button class="nav-item" data-route="insights"><span>◔</span>Insights</button>
@@ -93,7 +94,7 @@
 
       <div class="sidebar-footer">
         <button class="ghost-button full-width" id="syncButton" type="button">Sync now</button>
-        <small><span id="saveState">Ready</span> • v<span data-version>2.1.3</span></small>
+        <small><span id="saveState">Ready</span> • v<span data-version>2.1.4</span></small>
       </div>
     </aside>
 
@@ -154,6 +155,7 @@
               <button data-quick-type="income" type="button"><span>＋</span>Income</button>
               <button data-quick-type="transfer" type="button"><span>⇄</span>Transfer</button>
               <button data-go="budget" type="button"><span>◎</span>Budget</button>
+              <button data-go="owes" type="button"><span>☑</span>Owes</button>
             </div>
           </section>
         </div>
@@ -166,6 +168,13 @@
           <section class="card section-card">
             <div class="section-header"><div><p class="muted-label">SAVINGS</p><h3>Goals</h3></div><button class="text-button" data-go="goals" type="button">View goals →</button></div>
             <div id="dashboardGoals" class="list-container"></div>
+          </section>
+        </div>
+
+        <div class="content-grid">
+          <section class="card section-card">
+            <div class="section-header"><div><p class="muted-label">OWES CHECKLIST</p><h3>People and payments</h3><small id="dashboardDebtSummary">₱0.00 to collect • ₱0.00 to pay</small></div><button class="text-button" data-go="owes" type="button">Open tracker →</button></div>
+            <div id="dashboardDebts" class="list-container"></div>
           </section>
         </div>
       </section>
@@ -194,6 +203,18 @@
         <div class="card section-card">
           <div class="section-header"><div><p class="muted-label">BUDGET CONTROL</p><h3>Spending limits</h3></div><button class="primary-button" id="addBudgetButton" type="button">Add budget</button></div>
           <div class="budget-grid" id="budgetGrid"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-owes" data-page="owes">
+        <div class="card section-card">
+          <div class="section-header"><div><p class="muted-label">OWES TRACKER</p><h3>People owe me / I owe people</h3></div><button class="primary-button" id="addDebtButton" type="button">Add owe record</button></div>
+          <div class="insight-grid debt-summary-grid">
+            <article class="mini-card"><p class="muted-label">TO COLLECT</p><h4 id="owedToMeTotal">₱0.00</h4><small>People owe me</small></article>
+            <article class="mini-card"><p class="muted-label">TO PAY</p><h4 id="iOweTotal">₱0.00</h4><small>I owe people</small></article>
+            <article class="mini-card"><p class="muted-label">CHECKLIST</p><h4 id="debtChecklistCount">0 open items</h4><small id="overdueDebtCount">0 overdue</small></article>
+          </div>
+          <div class="list-container debt-list" id="debtList"></div>
         </div>
       </section>
 

@@ -1,6 +1,14 @@
 # Changelog
 
-## v2.1.3 — Invitation Home + Clean App Route
+## v2.1.4 — Owes Tracker + Wallet Payment Posting
+- Added Owes Tracker page for what people owe you and what you owe people.
+- Added payment checklist with open, partial, paid, and overdue status.
+- Added payment posting to selected wallet/account.
+- Paying someone creates an expense transaction and deducts from the chosen account.
+- Receiving payment creates an income transaction and adds to the chosen account.
+- Added dashboard owes summary and CSV owe record export column.
+
+## v2.1.4 — Invitation Home + Clean App Route
 - Added a public Finora hero homepage with feature sections and Q&A.
 - Changed homepage Log in action into an invitation-only modal.
 - Moved the actual app login/dashboard to `/app/`.

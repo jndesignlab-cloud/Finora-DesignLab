@@ -9,7 +9,7 @@
   const nowISO = () => new Date().toISOString();
   const id = () => (crypto.randomUUID ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(16).slice(2)}`);
   const storageKey = (key) => `${config.STORAGE_PREFIX || 'finora'}_${key}`;
-  const DEFAULT_CATEGORIES = ['Food', 'Transportation', 'Bills', 'Shopping', 'Salary', 'Emergency', 'Savings', 'Debt Payment', 'Health', 'Education', 'Subscriptions', 'Personal'];
+  const DEFAULT_CATEGORIES = ['Food', 'Transportation', 'Bills', 'Shopping', 'Salary', 'Emergency', 'Savings', 'Debt Payment', 'Health', 'Education', 'Subscriptions', 'Personal', 'Loans & Owes'];
 
   const els = {};
   let supabaseClient = null;
@@ -26,7 +26,7 @@
     const createdAt = nowISO();
     return {
       meta: {
-        version: config.VERSION || '2.1.3',
+        version: config.VERSION || '2.1.4',
         currency: config.DEFAULT_CURRENCY || 'PHP',
         locale: config.DEFAULT_LOCALE || 'en-PH',
         theme: 'system',
@@ -42,6 +42,7 @@
       ],
       transactions: [],
       budgets: [],
+      debts: [],
       categories: [...DEFAULT_CATEGORIES],
       goals: [],
       recurring: [],
@@ -87,7 +88,7 @@
       authGate: $('#authGate'), appShell: $('#appShell'), authTabs: $('#authTabs'), loginForm: $('#loginForm'), forgotForm: $('#forgotForm'),
       loginNotice: $('#loginNotice'), forgotNotice: $('#forgotNotice'), configStatus: $('#configStatus'), sideNav: $('#sideNav'), pageTitle: $('#pageTitle'), pageEyebrow: $('#pageEyebrow'),
       logoutButton: $('#logoutButton'), quickAddButton: $('#quickAddButton'), addTransactionButton: $('#addTransactionButton'), addAccountButton: $('#addAccountButton'),
-      addBudgetButton: $('#addBudgetButton'), addGoalButton: $('#addGoalButton'), addRecurringButton: $('#addRecurringButton'), addReminderButton: $('#addReminderButton'),
+      addBudgetButton: $('#addBudgetButton'), addDebtButton: $('#addDebtButton'), addGoalButton: $('#addGoalButton'), addRecurringButton: $('#addRecurringButton'), addReminderButton: $('#addReminderButton'),
       syncButton: $('#syncButton'), saveState: $('#saveState'), modalRoot: $('#modalRoot'), toast: $('#toast'), currentUserName: $('#currentUserName'),
       currentUserRole: $('#currentUserRole'), currentUserAvatar: $('#currentUserAvatar'), toggleBalances: $('#toggleBalances'), heroEyeButton: $('#heroEyeButton'),
       transactionSearch: $('#transactionSearch'), typeFilter: $('#typeFilter'), accountFilter: $('#accountFilter'), monthFilter: $('#monthFilter'),
@@ -100,7 +101,7 @@
   function applyBranding() {
     document.title = `${config.APP_NAME || 'Finora'} by ${config.APP_OWNER || 'DesignLab'}`;
     $$('[data-app-name]').forEach((node) => node.textContent = config.APP_NAME || 'Finora');
-    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.3');
+    $$('[data-version]').forEach((node) => node.textContent = config.VERSION || '2.1.4');
     const usernameInput = $('input[name="username"]', els.loginForm);
     if (usernameInput && config.DEFAULT_USERNAME) usernameInput.value = config.DEFAULT_USERNAME;
   }
@@ -149,6 +150,7 @@
     els.addTransactionButton?.addEventListener('click', () => openTransactionModal({ type: 'expense' }));
     els.addAccountButton?.addEventListener('click', () => openAccountModal());
     els.addBudgetButton?.addEventListener('click', () => openBudgetModal());
+    els.addDebtButton?.addEventListener('click', () => openDebtModal());
     els.addGoalButton?.addEventListener('click', () => openGoalModal());
     els.addRecurringButton?.addEventListener('click', () => openRecurringModal());
     els.addReminderButton?.addEventListener('click', () => openReminderModal());
@@ -326,6 +328,7 @@
       accounts: Array.isArray(input.accounts) ? input.accounts : base.accounts,
       transactions: Array.isArray(input.transactions) ? input.transactions : [],
       budgets: Array.isArray(input.budgets) ? input.budgets : [],
+      debts: Array.isArray(input.debts) ? input.debts : [],
       categories: Array.isArray(input.categories) ? input.categories : base.categories,
       goals: Array.isArray(input.goals) ? input.goals : [],
       recurring: Array.isArray(input.recurring) ? input.recurring : [],
@@ -352,6 +355,29 @@
       const categories = category ? [category] : [];
       return { active: true, accountId: '', category, categories, period: 'monthly', ...b, limit: Number(b.limit || b.amount || 0), accountId: b.accountId || '', category, categories };
     });
+    merged.debts = merged.debts.map((d) => {
+      const direction = d.direction === 'owed_to_me' ? 'owed_to_me' : 'i_owe';
+      const amount = Number(d.amount || 0);
+      const payments = Array.isArray(d.payments) ? d.payments.map((p) => ({ ...p, amount: Number(p.amount || 0), date: p.date || todayISO() })) : [];
+      const paidAmount = Number(d.paidAmount || payments.reduce((sum, p) => sum + Number(p.amount || 0), 0));
+      const category = cleanCategory(d.category || 'Loans & Owes');
+      const remaining = Math.max(0, amount - paidAmount);
+      return {
+        id: d.id || id(),
+        direction,
+        person: String(d.person || '').trim(),
+        amount,
+        paidAmount,
+        payments,
+        category,
+        accountId: d.accountId || '',
+        dueDate: d.dueDate || '',
+        notes: d.notes || '',
+        status: remaining <= 0 ? 'paid' : (paidAmount > 0 ? 'partial' : (d.status || 'open')),
+        createdAt: d.createdAt || nowISO(),
+        updatedAt: d.updatedAt || nowISO()
+      };
+    });
     merged.recurring = merged.recurring.map((r) => {
       const category = cleanCategory(r.category || (Array.isArray(r.categories) ? r.categories[0] : ''));
       const categories = category ? [category] : [];
@@ -362,6 +388,7 @@
       ...merged.categories,
       ...merged.transactions.flatMap((t) => getItemCategories(t)),
       ...merged.budgets.flatMap((b) => getItemCategories(b)),
+      ...merged.debts.flatMap((d) => getItemCategories(d)),
       ...merged.recurring.flatMap((r) => getItemCategories(r))
     ]);
     merged.goals = merged.goals.map((g) => ({ ...g, target: Number(g.target || 0), current: Number(g.current || 0) }));
@@ -406,7 +433,7 @@
     $$('.page').forEach((page) => page.classList.toggle('active', page.dataset.page === route));
     const labels = {
       dashboard: ['PERSONAL FINANCE', 'Overview'], transactions: ['TRANSACTION LEDGER', 'Transactions'], accounts: ['ACCOUNT CENTER', 'Accounts'],
-      budget: ['BUDGET CONTROL', 'Budget'], goals: ['SAVINGS TARGETS', 'Goals'], recurring: ['AUTOMATION', 'Recurring'],
+      budget: ['BUDGET CONTROL', 'Budget'], owes: ['OWES TRACKER', 'Owes'], goals: ['SAVINGS TARGETS', 'Goals'], recurring: ['AUTOMATION', 'Recurring'],
       insights: ['FINANCIAL SNAPSHOT', 'Insights'], settings: ['APP CONTROL', 'Settings']
     };
     els.pageEyebrow.textContent = labels[route]?.[0] || 'FINORA';
@@ -422,6 +449,7 @@
     renderAccounts();
     renderTransactions();
     renderBudgets();
+    renderDebts();
     renderGoals();
     renderRecurring();
     renderInsights();
@@ -461,6 +489,7 @@
     $('#recentTransactions').innerHTML = recent.map(transactionRow).join('') || empty('No transactions yet. Start with an income, expense, or transfer.');
 
     $('#dashboardGoals').innerHTML = state.goals.slice(0, 4).map(goalCardCompact).join('') || empty('No savings goals yet.');
+    renderDashboardDebts();
   }
 
   function renderAccounts() {
@@ -529,6 +558,93 @@
     }).join('') || empty('No budgets yet. Add daily, weekly, monthly, or yearly account-based limits.');
     $$('[data-edit-budget]', grid).forEach((btn) => btn.addEventListener('click', () => openBudgetModal(state.budgets.find((b) => b.id === btn.dataset.editBudget))));
     $$('[data-delete-budget]', grid).forEach((btn) => btn.addEventListener('click', () => deleteById('budgets', btn.dataset.deleteBudget)));
+  }
+
+
+  function renderDashboardDebts() {
+    const container = $('#dashboardDebts');
+    if (!container) return;
+    const openDebts = state.debts.filter((d) => debtRemaining(d) > 0).slice(0, 4);
+    container.innerHTML = openDebts.map(debtMiniRow).join('') || empty('No open owes yet.');
+    const summaryNode = $('#dashboardDebtSummary');
+    if (summaryNode) {
+      const summary = getDebtSummary();
+      summaryNode.textContent = `${money(summary.owedToMe)} to collect • ${money(summary.iOwe)} to pay`;
+    }
+  }
+
+  function renderDebts() {
+    const list = $('#debtList');
+    if (!list) return;
+    const summary = getDebtSummary();
+    $('#owedToMeTotal').textContent = money(summary.owedToMe);
+    $('#iOweTotal').textContent = money(summary.iOwe);
+    $('#debtChecklistCount').textContent = `${summary.openCount} open item${summary.openCount === 1 ? '' : 's'}`;
+    $('#overdueDebtCount').textContent = `${summary.overdueCount} overdue`;
+
+    const debts = [...state.debts].sort((a, b) => {
+      const statusA = debtRemaining(a) <= 0 ? 1 : 0;
+      const statusB = debtRemaining(b) <= 0 ? 1 : 0;
+      return statusA - statusB || String(a.dueDate || '9999-12-31').localeCompare(String(b.dueDate || '9999-12-31')) || String(b.createdAt).localeCompare(String(a.createdAt));
+    });
+    list.innerHTML = debts.map(debtCard).join('') || empty('No owes yet. Add money people owe you or money you need to pay.');
+    $$('[data-edit-debt]', list).forEach((btn) => btn.addEventListener('click', () => openDebtModal(state.debts.find((d) => d.id === btn.dataset.editDebt))));
+    $$('[data-pay-debt]', list).forEach((btn) => btn.addEventListener('click', () => openDebtPaymentModal(btn.dataset.payDebt)));
+    $$('[data-delete-debt]', list).forEach((btn) => btn.addEventListener('click', () => deleteDebt(btn.dataset.deleteDebt)));
+  }
+
+  function debtMiniRow(debt) {
+    const remaining = debtRemaining(debt);
+    const label = debt.direction === 'owed_to_me' ? 'Collect' : 'Pay';
+    return `<article class="list-row debt-mini-row"><span class="emoji">${debt.direction === 'owed_to_me' ? '🤝' : '🧾'}</span><div><h4>${escapeHtml(debt.person || 'Unnamed person')}</h4><p>${escapeHtml(label)} • ${escapeHtml(debt.category || 'Loans & Owes')}${debt.dueDate ? ` • due ${formatDate(debt.dueDate)}` : ''}</p></div><div class="row-right"><strong>${money(remaining)}</strong></div></article>`;
+  }
+
+  function debtCard(debt) {
+    const paid = debtPaid(debt);
+    const remaining = debtRemaining(debt);
+    const pct = Number(debt.amount || 0) > 0 ? Math.min(100, (paid / Number(debt.amount || 0)) * 100) : 0;
+    const isPaid = remaining <= 0;
+    const overdue = !isPaid && debt.dueDate && debt.dueDate < todayISO();
+    const directionLabel = debt.direction === 'owed_to_me' ? 'People owe me' : 'I owe people';
+    const actionLabel = debt.direction === 'owed_to_me' ? 'Record received' : 'Pay now';
+    const statusLabel = isPaid ? 'Paid' : overdue ? 'Overdue' : paid > 0 ? 'Partial' : 'Open';
+    return `<article class="mini-card debt-card ${debt.direction}">
+      <div class="mini-top"><div><h4>${escapeHtml(debt.person || 'Unnamed person')}</h4><p>${escapeHtml(directionLabel)} • ${escapeHtml(debt.category || 'Loans & Owes')}</p></div><span class="tag ${isPaid ? 'income' : overdue ? 'expense' : ''}">${statusLabel}</span></div>
+      <strong class="money-display debt-money">${money(remaining)}</strong>
+      <p>Remaining of <strong>${money(debt.amount)}</strong>${debt.dueDate ? ` • Due ${formatDate(debt.dueDate)}` : ''}</p>
+      <div class="progress ${overdue ? 'over' : ''}"><span style="width:${pct}%"></span></div>
+      <p>${money(paid)} recorded${debt.accountId ? ` • preferred ${escapeHtml(accountName(debt.accountId))}` : ''}</p>
+      <div class="button-row"><button class="primary-button compact-button" type="button" data-pay-debt="${debt.id}" ${isPaid ? 'disabled' : ''}>${actionLabel}</button><button class="secondary-button compact-button" type="button" data-edit-debt="${debt.id}">Edit</button><button class="ghost-button compact-button" type="button" data-delete-debt="${debt.id}">Delete</button></div>
+    </article>`;
+  }
+
+  function getDebtSummary() {
+    return state.debts.reduce((acc, d) => {
+      const remaining = debtRemaining(d);
+      if (remaining > 0) {
+        acc.openCount += 1;
+        if (d.dueDate && d.dueDate < todayISO()) acc.overdueCount += 1;
+        if (d.direction === 'owed_to_me') acc.owedToMe += remaining;
+        else acc.iOwe += remaining;
+      }
+      return acc;
+    }, { owedToMe: 0, iOwe: 0, openCount: 0, overdueCount: 0 });
+  }
+
+  function debtPaid(debt) {
+    if (Array.isArray(debt.payments) && debt.payments.length) return debt.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    return Number(debt.paidAmount || 0);
+  }
+
+  function debtRemaining(debt) {
+    return Math.max(0, Number(debt.amount || 0) - debtPaid(debt));
+  }
+
+  function updateDebtStatus(debt) {
+    debt.paidAmount = debtPaid(debt);
+    const remaining = debtRemaining(debt);
+    debt.status = remaining <= 0 ? 'paid' : debt.paidAmount > 0 ? 'partial' : 'open';
+    debt.updatedAt = nowISO();
   }
 
   function renderGoals() {
@@ -851,6 +967,95 @@
     });
   }
 
+
+  function openDebtModal(debt = null) {
+    const editing = !!debt;
+    const data = debt || { id: id(), direction: 'i_owe', person: '', amount: 0, paidAmount: 0, payments: [], category: 'Loans & Owes', accountId: state.accounts[0]?.id || '', dueDate: '', notes: '', status: 'open' };
+    const category = cleanCategory(data.category || 'Loans & Owes');
+    openModal(`${editing ? 'Edit' : 'Add'} owe record`, `<form id="debtForm" class="form-grid">
+      <label>Type<select name="direction"><option value="i_owe" ${data.direction !== 'owed_to_me' ? 'selected' : ''}>I owe someone</option><option value="owed_to_me" ${data.direction === 'owed_to_me' ? 'selected' : ''}>Someone owes me</option></select></label>
+      <label>Person / Name<input name="person" required value="${attr(data.person)}" placeholder="Name of person"></label>
+      <label>Amount<input name="amount" type="number" step="0.01" min="0" required value="${Number(data.amount || 0)}"></label>
+      <label>Preferred wallet/account<select name="accountId">${accountOptions(data.accountId)}</select></label>
+      <label>Due date<input name="dueDate" type="date" value="${attr(data.dueDate)}"></label>
+      <label>Category<select name="category" id="debtCategory">${categoryOptions(category)}</select></label>
+      <div class="inline-add-category span"><input name="newCategory" id="debtNewCategory" placeholder="Add category, e.g. Reimbursements"><button class="secondary-button compact-button" id="debtAddCategory" type="button">Add category</button></div>
+      <label class="span">Notes<textarea name="notes">${escapeHtml(data.notes || '')}</textarea></label>
+      <div class="button-row span"><button class="primary-button" type="submit">Save owe record</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
+    </form>`);
+    bindCategoryDropdownQuickAdd('#debtNewCategory', '#debtAddCategory', '#debtCategory', false);
+    $('#debtForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const typedCategory = cleanCategory(form.get('newCategory'));
+      let nextCategory = typedCategory || cleanCategory(form.get('category')) || 'Loans & Owes';
+      if (nextCategory === '__new') nextCategory = 'Loans & Owes';
+      if (typedCategory) addCategoryToState(typedCategory);
+      const next = { ...data, direction: form.get('direction'), person: form.get('person'), amount: Number(form.get('amount') || 0), accountId: form.get('accountId') || '', dueDate: form.get('dueDate') || '', category: nextCategory, categories: [nextCategory], notes: form.get('notes'), updatedAt: nowISO(), createdAt: data.createdAt || nowISO() };
+      updateDebtStatus(next);
+      upsert('debts', next);
+      closeModal(); renderAll(); markDirty(); toast('Owe record saved.');
+    });
+  }
+
+  function openDebtPaymentModal(debtId) {
+    const debt = state.debts.find((d) => d.id === debtId);
+    if (!debt) return;
+    const remaining = debtRemaining(debt);
+    if (remaining <= 0) return toast('This owe record is already paid.');
+    const isPayable = debt.direction === 'i_owe';
+    const title = isPayable ? `Pay ${debt.person || 'person'}` : `Record payment from ${debt.person || 'person'}`;
+    const action = isPayable ? 'Pay and deduct from wallet' : 'Record received and add to wallet';
+    openModal(title, `<form id="debtPaymentForm" class="form-grid">
+      <label>Amount<input name="amount" type="number" step="0.01" min="0.01" max="${remaining}" required value="${remaining}"></label>
+      <label>Wallet/account<select name="accountId" required>${accountOptions(debt.accountId || state.accounts[0]?.id || '')}</select></label>
+      <label>Date<input name="date" type="date" required value="${todayISO()}"></label>
+      <label class="span">Notes<textarea name="notes" placeholder="Optional payment note"></textarea></label>
+      <p class="tiny-help span">${isPayable ? 'This creates an expense transaction and deducts the amount from the selected wallet/account.' : 'This creates an income transaction and adds the amount to the selected wallet/account.'}</p>
+      <div class="button-row span"><button class="primary-button" type="submit">${action}</button><button class="ghost-button" type="button" data-close-modal>Cancel</button></div>
+    </form>`);
+    $('#debtPaymentForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const amount = Math.min(Number(form.get('amount') || 0), remaining);
+      if (amount <= 0) return toast('Enter a valid amount.');
+      const accountId = form.get('accountId');
+      const paymentId = id();
+      const tx = {
+        id: id(),
+        type: isPayable ? 'expense' : 'income',
+        accountId,
+        toAccountId: '',
+        amount,
+        category: debt.category || 'Loans & Owes',
+        categories: [debt.category || 'Loans & Owes'],
+        merchant: debt.person || '',
+        notes: form.get('notes') || (isPayable ? `Payment to ${debt.person || 'person'}` : `Payment received from ${debt.person || 'person'}`),
+        date: form.get('date'),
+        includeInBudget: false,
+        budgetIds: [],
+        budgetId: '',
+        debtId: debt.id,
+        debtPaymentId: paymentId,
+        createdAt: nowISO(),
+        updatedAt: nowISO()
+      };
+      state.transactions.push(tx);
+      debt.payments = Array.isArray(debt.payments) ? debt.payments : [];
+      debt.payments.push({ id: paymentId, transactionId: tx.id, amount, accountId, date: tx.date, notes: tx.notes, createdAt: nowISO() });
+      updateDebtStatus(debt);
+      closeModal(); renderAll(); markDirty(); toast(isPayable ? 'Payment recorded and deducted from your wallet.' : 'Payment received and added to your wallet.');
+    });
+  }
+
+  function deleteDebt(debtId) {
+    const debt = state.debts.find((d) => d.id === debtId);
+    if (!debt) return;
+    if (!confirm('Delete this owe record? Any payment transactions already created will stay in the transaction ledger.')) return;
+    state.debts = state.debts.filter((d) => d.id !== debtId);
+    renderAll(); markDirty(); toast('Owe record deleted.');
+  }
+
   function openGoalModal(goal = null) {
     const editing = !!goal;
     const data = goal || { id: id(), name: '', target: 0, current: 0, targetDate: '', accountId: state.accounts[0]?.id || '', notes: '' };
@@ -967,6 +1172,14 @@
 
   function deleteTransaction(txId) {
     if (!confirm('Delete this transaction?')) return;
+    const tx = state.transactions.find((t) => t.id === txId);
+    if (tx?.debtId) {
+      const debt = state.debts.find((d) => d.id === tx.debtId);
+      if (debt && Array.isArray(debt.payments)) {
+        debt.payments = debt.payments.filter((p) => p.transactionId !== txId && p.id !== tx.debtPaymentId);
+        updateDebtStatus(debt);
+      }
+    }
     state.transactions = state.transactions.filter((t) => t.id !== txId);
     renderAll(); markDirty(); toast('Transaction deleted.');
   }
@@ -1065,8 +1278,8 @@
   }
 
   function exportCsv() {
-    const headers = ['date','type','account','to_account','categories','budget','merchant','notes','amount'];
-    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), categoriesLabel(t, ''), t.includeInBudget && getItemBudgetIds(t).length ? budgetNames(t) : '', t.merchant, t.notes, t.amount]);
+    const headers = ['date','type','account','to_account','categories','budget','owe_record','merchant','notes','amount'];
+    const rows = state.transactions.map((t) => [t.date, t.type, accountName(t.accountId), accountName(t.toAccountId), categoriesLabel(t, ''), t.includeInBudget && getItemBudgetIds(t).length ? budgetNames(t) : '', debtName(t.debtId), t.merchant, t.notes, t.amount]);
     const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
     downloadFile(`finora-transactions-${todayISO()}.csv`, csv, 'text/csv');
   }
@@ -1089,7 +1302,7 @@
 
   function openDocModal(kind) {
     const docs = {
-      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, account-scoped budgets, manual transaction-to-budget links, single-category records, multi-budget transaction links, category dropdown manager, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, sync finance records across your own devices, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
+      privacy: ['Privacy Notice', `<div class="legal-copy"><p>Finora Supabase Edition is prepared for personal or in-house use. It stores account login records, session records, audit logs, and your finance app data in your own Supabase project.</p><h3>Data processed</h3><p>Username, password hash, recovery-code hash, session token hashes, audit events, accounts, transactions, account-scoped budgets, manual transaction-to-budget links, single-category records, multi-budget transaction links, category dropdown manager, people-owe-me / I-owe-people records, payment checklist records, goals, recurring items, reminders, app settings, and backups you export.</p><h3>Purpose</h3><p>Data is used to authenticate you, sync your finance records, sync finance records across your own devices, display summaries, and support backup or reset actions.</p><h3>Control</h3><p>You control the Supabase project, database, app deployment, and backups. Use strong project access controls and do not publish the service role key.</p></div>`],
       terms: ['Terms of Use', `<div class="legal-copy"><p>Finora is provided as a personal finance tracker and planning tool by DesignLab. It is not financial, accounting, tax, or legal advice.</p><p>Review all figures before making financial decisions. You are responsible for protecting your login credentials, backups, and Supabase project access.</p></div>`],
       security: ['Security Notes', `<div class="legal-copy"><p>This edition uses Supabase RPC functions, password hashing through Postgres pgcrypto, hashed session tokens, failed-login lockout, owner recovery code, and no direct table access through the public client.</p><p>Before any public launch, migrate to Supabase Auth or a dedicated backend, configure production monitoring, and complete a proper privacy/legal review.</p></div>`]
     };
@@ -1137,6 +1350,7 @@
   function budgetAccountOptions(selected) { return '<option value="" ' + (!selected ? 'selected' : '') + '>All accounts</option>' + state.accounts.map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join(''); }
   function budgetName(budgetId) { return state.budgets.find((b) => b.id === budgetId)?.name || 'No budget'; }
   function budgetNames(item) { const ids = Array.isArray(item) ? item : getItemBudgetIds(item); return ids.map(budgetName).filter((name) => name && name !== 'No budget').join(' + ') || 'No budget'; }
+  function debtName(debtId) { const debt = state?.debts?.find((d) => d.id === debtId); return debt ? `${debt.direction === 'owed_to_me' ? 'Collect from' : 'Pay to'} ${debt.person || 'person'}` : ''; }
   function getItemBudgetIds(item) {
     const raw = Array.isArray(item?.budgetIds) ? item.budgetIds : (item?.budgetId ? [item.budgetId] : []);
     return getValidBudgetIds(raw);
@@ -1202,7 +1416,7 @@
       input.value = '';
     });
   }
-  function getCategories() { return uniqueCategories([...(state?.categories || []), ...(state?.transactions || []).flatMap((t) => getItemCategories(t)), ...(state?.budgets || []).flatMap((b) => getItemCategories(b)), ...(state?.recurring || []).flatMap((r) => getItemCategories(r))]); }
+  function getCategories() { return uniqueCategories([...(state?.categories || []), ...(state?.transactions || []).flatMap((t) => getItemCategories(t)), ...(state?.budgets || []).flatMap((b) => getItemCategories(b)), ...(state?.debts || []).flatMap((d) => getItemCategories(d)), ...(state?.recurring || []).flatMap((r) => getItemCategories(r))]); }
   function getItemCategories(item) { return normalizeCategoryArray(Array.isArray(item?.categories) && item.categories.length ? item.categories : (item?.category ? [item.category] : [])); }
   function categoriesLabel(item, fallback = 'Uncategorized') { const categories = getItemCategories(item); return categories.length ? categories.join(' + ') : fallback; }
   function budgetCategoryScope(budget) { const categories = getItemCategories(budget); return categories.length ? categories.join(' + ') : 'All categories'; }
