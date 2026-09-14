@@ -1,6 +1,17 @@
+# Finora Changelog
+
+## v2.1.5 — New Supabase Recovery
+
+- Repointed Finora to the replacement Supabase project.
+- Updated publishable key.
+- Updated fresh database schema metadata to v2.1.5.
+- Added current default `debts` and `categories` state keys for clean installs.
+- Added recovery instructions for restoring from a JSON backup or an already-open Finora session.
+- Updated PWA cache/version references.
+
 # Changelog
 
-## v2.1.4 — Owes Tracker + Wallet Payment Posting
+## v2.1.5 — Owes Tracker + Wallet Payment Posting
 - Added Owes Tracker page for what people owe you and what you owe people.
 - Added payment checklist with open, partial, paid, and overdue status.
 - Added payment posting to selected wallet/account.
@@ -8,7 +19,7 @@
 - Receiving payment creates an income transaction and adds to the chosen account.
 - Added dashboard owes summary and CSV owe record export column.
 
-## v2.1.4 — Invitation Home + Clean App Route
+## v2.1.5 — Invitation Home + Clean App Route
 - Added a public Finora hero homepage with feature sections and Q&A.
 - Changed homepage Log in action into an invitation-only modal.
 - Moved the actual app login/dashboard to `/app/`.

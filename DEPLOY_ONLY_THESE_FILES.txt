@@ -1,25 +1,15 @@
-Finora v2.1.4 — Invitation Home + Clean App Route
+Finora v2.1.5 — New Supabase Recovery
 
-Upload the CONTENTS of this folder to the GitHub Pages repository root.
+Deploy the CONTENTS of this folder to the repository root.
 
-Root should include:
-- index.html                     Public invitation-only hero page
-- login.html                     Private entry redirect to /app/
-- app/index.html                 Actual Finora application login/dashboard
+Required runtime files:
+- index.html
+- login.html
+- app/
 - assets/
 - manifest.webmanifest
 - service-worker.js
-- .nojekyll
 - CNAME
-- VERSION
-- supabase/
-- _source_notes/
+- .nojekyll
 
-Public homepage:
-https://finora.madebydesignlab.com/
-
-Private app entry:
-https://finora.madebydesignlab.com/login.html
-
-After opening login.html, the browser redirects to:
-https://finora.madebydesignlab.com/app/
+Before opening Finora, run `supabase/finora_schema.sql` once in the NEW Supabase project's SQL Editor.

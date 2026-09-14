@@ -7,11 +7,11 @@ window.FINORA_CONFIG = {
   APP_NAME: "Finora",
   APP_OWNER: "DesignLab",
   APP_TAGLINE: "Money planning by DesignLab",
-  VERSION: "2.1.4",
+  VERSION: "2.1.5",
   EDITION: "Supabase Edition",
 
-  SUPABASE_URL: "https://yqlvdciruweoozisjone.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_0tB9Gj5P2bIhy3-csBbccg_mFswsot1",
+  SUPABASE_URL: "https://ulclhxperkzuchaoqwps.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_1Y4WqxwZh7qAxGwH7gL8lg_Wpus7h-k",
 
   STORAGE_PREFIX: "finora_supabase_v2",
   DEFAULT_USERNAME: "jaravata",

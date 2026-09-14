@@ -1,4 +1,4 @@
--- Finora by DesignLab — Supabase Edition v2.0.1
+-- Finora by DesignLab — Supabase Edition v2.1.5
 -- Run this once in Supabase SQL Editor.
 -- Default login seeded by this file:
 --   username: jaravata
@@ -68,7 +68,7 @@ set search_path = public, extensions, pg_temp
 as $$
   select jsonb_build_object(
     'meta', jsonb_build_object(
-      'version', '2.0.1',
+      'version', '2.1.5',
       'currency', 'PHP',
       'locale', 'en-PH',
       'theme', 'system',
@@ -84,6 +84,8 @@ as $$
     ),
     'transactions', '[]'::jsonb,
     'budgets', '[]'::jsonb,
+    'debts', '[]'::jsonb,
+    'categories', jsonb_build_array('Food','Transportation','Bills','Shopping','Salary','Emergency','Savings','Debt Payment','Health','Education','Subscriptions','Personal','Loans & Owes'),
     'goals', '[]'::jsonb,
     'recurring', '[]'::jsonb,
     'reminders', '[]'::jsonb,

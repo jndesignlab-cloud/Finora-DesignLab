@@ -5,7 +5,7 @@
 - Product name: **Finora**
 - Owner brand: **DesignLab**
 - Edition: **Supabase Edition**
-- Version: **2.1.4**
+- Version: **2.1.5**
 - Intended use: **personal / in-house**
 - Default currency: **PHP**
 - Default locale: **en-PH**
@@ -24,8 +24,8 @@ assets/js/config.js
 Current values:
 
 ```js
-SUPABASE_URL: "https://yqlvdciruweoozisjone.supabase.co",
-SUPABASE_ANON_KEY: "sb_publishable_0tB9Gj5P2bIhy3-csBbccg_mFswsot1",
+SUPABASE_URL: "https://ulclhxperkzuchaoqwps.supabase.co",
+SUPABASE_ANON_KEY: "sb_publishable_1Y4WqxwZh7qAxGwH7gL8lg_Wpus7h-k",
 ```
 
 Do not put the Supabase service role key in this file. Only the public publishable/anon key should be used in the frontend.
@@ -92,18 +92,25 @@ Follow the usual DesignLab versioning flow:
 Suggested future versions:
 
 ```text
-v2.1.4 — Transaction Polish
+v2.1.5 — Transaction Polish
 v2.2.0 — Smarter Budget Reports
 v3.0.0 — Public Auth / Supabase Auth Edition
 ```
 
 
-## v2.1.4 budget/category correction
+## v2.1.5 budget/category correction
 
 Categories are single-select again. Transaction budget linking now supports selecting multiple budgets through toggle chips.
 
 
-## v2.1.4 Routes
+## v2.1.5 Routes
 - Home: `/`
 - Private manual entry: `/login.html`
 - Clean app route: `/app/`
+
+
+## v2.1.5 — New Supabase Project
+
+Configured project URL: `https://ulclhxperkzuchaoqwps.supabase.co`
+
+Run `supabase/finora_schema.sql` in the new project before logging in.
